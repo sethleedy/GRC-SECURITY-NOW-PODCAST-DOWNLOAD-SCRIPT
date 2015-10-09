@@ -1,13 +1,15 @@
 # GRC-SECURITY-NOW-PODCAST-DOWNLOAD-SCRIPT
 
 Purpose of this BASH script is to allow easy downloading of Security Now (GRC.Com/SecurityNow) podcasts and files related to it.
+
 A secondary goal is to allow the script to run on a webserver, routinly downloading the latest files and offer them to the public on a self updating RSS feed.
 
 Vote:
   Does this project need a name change ?
   Email me your thoughts and recommendations.
   
-  ----
+#####################
+
 Output of the help in the script:  
 ./Seth_Leedys_download_all_GRC_podcasts-v1.7.sh -h
 
