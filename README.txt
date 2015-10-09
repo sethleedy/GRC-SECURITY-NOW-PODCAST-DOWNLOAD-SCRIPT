@@ -8,7 +8,7 @@ Vote:
   Does this project need a name change ?
   Email me your thoughts and recommendations.
   
-#####################
+########################################
 
 Output of the help in the script:  
 ./Seth_Leedys_download_all_GRC_podcasts-v1.7.sh -h
@@ -55,3 +55,7 @@ Misc Options:
 -skip-digital-cert-check
                 Sometimes, if running through a proxy, wget will refuse to download from GRC. Try this to skip the digital certificate safety check.
 -h              This help output.
+
+########################################
+
+Orginal script homepage was @ http://techblog.sethleedy.name/?p=24172
