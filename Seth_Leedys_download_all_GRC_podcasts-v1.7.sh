@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Created: 2012-05-25
-# Last Updated: 2015-10-07
+# Last Updated: 2015-10-09
 
 # This script will have updates at http://techblog.sethleedy.name/?p=24172 website
 #and for development @ https://github.com/sethleedy/GRC-SECURITY-NOW-PODCAST-DOWNLOAD-SCRIPT
@@ -93,7 +93,7 @@ CHANNELFEEDCREATIONLINK="http://techblog.sethleedy.name/sn-feed.rss"
 CHANNELFEEDDESC="Listing all episodes of {Audio|Video|Text|All Types}"
 CHANNELIMAGE="https://www.grc.com/image/snonwhite.gif"
 
-webmaster_email="webmaster@sethleedy.name"
+Dev_Coder_email="code@sethleedy.name"
 
 # Send a "Ping" back to my server. This allows me to know that my script is being used out in the wild.
 # The request will show up in my blog and I can parse it later for stats.
@@ -931,7 +931,7 @@ function rss_header() {
 	<title>$CHANNELFEEDTITLE</title>
 	<pubDate>$(date)</pubDate>
 	<ttl>10080</ttl>
-	<webMaster>$webmaster_email</webMaster>
+	<webMaster>$Dev_Coder_email</webMaster>
 	<link>$CHANNELFEEDLINK</link>
 	<description>$CHANNELFEEDDESC</description>
 	<image>
