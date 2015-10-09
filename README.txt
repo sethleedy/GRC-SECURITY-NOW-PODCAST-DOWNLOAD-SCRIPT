@@ -2,7 +2,7 @@
 
 Purpose of this BASH script is to allow easy downloading of Security Now (GRC.Com/SecurityNow) podcasts and files related to it.
 
-A secondary goal is to allow the script to run on a webserver, routinly downloading the latest files and offer them to the public on a self updating RSS feed.
+(In dev for 1.7)A secondary goal is to allow the script to run on a webserver, routinly downloading the latest files and offer them to the public on a self updating RSS feed.
 
 Vote:
   Does this project need a name change ?
