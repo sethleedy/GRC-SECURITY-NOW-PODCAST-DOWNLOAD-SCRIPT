@@ -82,9 +82,6 @@ create_rss_video=false
 create_rss_text=false
 
 
-# Terminal variables
-ceol=`tput el`
-
 # RSS Feed Variables
 HTTPLINK=""
 CHANNELFEEDTITLE="GRC Security Now RSS Feed"
@@ -1416,6 +1413,12 @@ until [ -z "$1" ]; do
 
 	shift
 done
+
+
+# Terminal variables
+if ! $quite_mode; then # This was needed since in Crontab, tput could not access the $TERM variable. Keep -q on the command in crontab.
+	ceol=$(tput el)
+fi
 
 #echo "ahq: $download_audio_hq, alq: $download_audio_lq, vhq: $download_video_hd, vhq: $download_video_hq, vlq: $download_video_lq, p: $pretend_mode, all: $download_all, latest: $download_latest, download_episode_number: $download_episode_number, Episode: start:$EPISODE to:$EPISODE_TO"
 
