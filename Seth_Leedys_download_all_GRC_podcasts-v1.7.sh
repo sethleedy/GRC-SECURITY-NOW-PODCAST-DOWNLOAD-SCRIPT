@@ -9,7 +9,8 @@
 
 # Initialization.
 this_version="1.7"
-
+curr_directory_name="${PWD##*/}"
+script_directory_path="$(pwd)"
 find_latest_episode_url="http://www.grc.com/securitynow.htm"
 
 #EPISODE_NAME_AUDIO_HQ_URL="http://media.grc.com/sn"
@@ -80,6 +81,8 @@ create_rss_feeds=false
 create_rss_audio=false
 create_rss_video=false
 create_rss_text=false
+rss_filename=""
+rss_feed_text_limit=""
 
 
 # RSS Feed Variables
@@ -248,7 +251,8 @@ function output_help() {
 	echo "-create-rss-video	Will create a RSS feed file for RSS News Readers containing the Show's video files."
 	echo "-create-rss-text	Will create a RSS feed file for RSS News Readers containing the Show's Notes and Transcriptions."
 	echo "-create-rss-feeds	Will create a RSS feed file for RSS News Readers containing all media files."
-	echo "-rss-filename		Sets the path and filename of the rss feed file. If excluded, defaults to 'security_now.rss' in the current directory"
+	echo "-rss-filename		Sets the path and filename of the rss feed file. If excluded, defaults to 'security_now.rss' in the current directory."
+	echo "-rss-limit		Limits how much text is placed in the RSS feed file from each episode. Default none. Try 100."
 	echo "------------------------------------------------------------------------------------"
 	echo "Misc Options:"
 
@@ -291,7 +295,12 @@ function do_headers() {
 function do_cache() {
 
 		# Create temp download area
-		mkdir $download_temp_txt_search_dir >/dev/null 2>&1 # make silent in case it already exists.
+		curr_directory_name_temp=${PWD##*/} # Get the current directory name
+		if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then # make sure we are not already inside the directory to search files
+			if [ ! -d "$download_temp_txt_search_dir" ]; then # If it does not exists already
+				mkdir $download_temp_txt_search_dir >/dev/null 2>&1 # Create the directory to hold all text epi to search for text within.
+			fi
+		fi
 
 		# If compressed cache exists, uncompress it.
 		# Check to see what program we can use to compress/uncompress the cache.
@@ -311,7 +320,13 @@ function do_cache() {
 			# Use proper commands for which program is available
 			case "${check_program_exists_arr[${#check_program_exists_arr[*]}]}" in
 			'gzip')
-				cd $download_temp_txt_search_dir/
+				
+				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
+					cd $download_temp_txt_search_dir
+					skip_cd=false
+				else
+					skip_cd=true
+				fi
 				if [[ "$1" == "uncompress" ]]; then
 					if ! $quite_mode ; then
 						echo "Uncompressing cache"
@@ -324,27 +339,43 @@ function do_cache() {
 					cmd="gzip *.txt >/dev/null 2>&1"
 					$cmd &
 				fi
-				cd ..
+				
+				if ! $skip_cd; then
+					cd ..
+				fi
 				;;
 			'zip')
-				cd $download_temp_txt_search_dir/
+				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
+					cd $download_temp_txt_search_dir
+					skip_cd=false
+				else
+					skip_cd=true
+				fi
 				if [[ "$1" == "uncompress" ]]; then
 					if ! $quite_mode ; then
 						echo "Uncompressing cache"
 					fi
 					unzip -qq -o cache.zip >/dev/null 2>&1
-					rm cache.zip >/dev/null
+					rm -f cache.zip >/dev/null
 				elif [[ "$1" == "compress" ]]; then
 					if ! $quite_mode ; then
 						echo "Compressing cache"
 					fi
-					cmd="zip -9 -qq cache.zip *.txt >/dev/null 2>&1; rm *.txt >/dev/null"
+					cmd="zip -9 -qq cache.zip *.txt >/dev/null 2>&1; rm -f *.txt >/dev/null"
 					$cmd &
 				fi
-				cd ..
+				
+				if ! $skip_cd; then
+					cd ..
+				fi
 				;;
 			'bzip2')
-				cd $download_temp_txt_search_dir/
+				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
+					cd $download_temp_txt_search_dir
+					skip_cd=false
+				else
+					skip_cd=true
+				fi
 				if [[ "$1" == "uncompress" ]]; then
 					if ! $quite_mode ; then
 						echo "Uncompressing cache"
@@ -359,16 +390,27 @@ function do_cache() {
 					cmd="find *.txt -type f -exec bzip2 -q -sqf -9 {} ;"
 					$cmd >/dev/null 2>&1
 				fi
-				cd ..
+				
+				if ! $skip_cd; then
+					cd ..
+				fi
 				;;
 			'7z')
-				cd $download_temp_txt_search_dir/
+				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
+					cd $download_temp_txt_search_dir
+					skip_cd=false
+				else
+					skip_cd=true
+				fi
+				#echo "$curr_directory_name_temp"
+				#echo "$download_temp_txt_search_dir"
+				#exit
 				if [[ "$1" == "uncompress" ]]; then
 					if ! $quite_mode ; then
 						echo "Uncompressing cache"
 					fi
 					7z e cache.7z >/dev/null 2>&1
-					rm cache.7z >/dev/null 2>&1
+					rm -f cache.7z >/dev/null 2>&1
 				elif [[ "$1" == "compress" ]]; then
 					if ! $quite_mode ; then
 						echo "Compressing cache"
@@ -376,12 +418,15 @@ function do_cache() {
 
 					# Run compression in background so there is no delay on the terminal
 					# This may cause issues if the user reuses the script immediately. eg: deleting files at the same time as rechecking or downloading on the new script run.
-					cmd="7z a -mx=9  cache.7z *.txt"
+					cmd="7z a -mx=9 cache.7z *.txt"
 					$cmd >/dev/null 2>&1
-					cmd="rm *.txt"
+					cmd="rm -f *.txt"
 					$cmd >/dev/null 2>&1
 				fi
-				cd ..
+				
+				if ! $skip_cd; then
+					cd ..
+				fi
 			   ;;
 			esac
 
@@ -756,23 +801,53 @@ function do_downloading() {
 
 }
 
+function spinner() {
+    local pid=$1
+    local delay=0.4
+    local spinstr='|/-\'
+    while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
+        local temp=${spinstr#?}
+        printf " [%c]  " "$spinstr"
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+        printf "\b\b\b\b\b\b"
+    done
+    printf "    \b\b\b\b"
+}
+
+tempspin=""
+spinstr='|/-\'
+function spinner_step() {
+    local delay=0.4
+
+	tempspin=${spinstr#?}
+        printf " [%c]  " "$spinstr"
+	spinstr=$tempspin${spinstr%"$tempspin"}
+        sleep $delay
+        printf "\b\b\b\b\b\b"
+
+}
+
 # Searching for text in episodes.
 function do_searching() {
 
 	# Download all text transcripts and search them.
 	if $search_txt_download ; then
 
-		# call uncompress/compress function for cache.
-		do_cache "uncompress"
-
 		# Download all the files to search
 		#I need to insert a way to narrow down what episodes need downloaded. Instead of rechecking every time. Takes to long that way. wget is set to only download if the server side is newer ( -N ). Still takes a while.
 		if ! $quite_mode ; then
 			echo "Downloading files"
 		fi
-
-		cd $download_temp_txt_search_dir/
+		
+		# Change to the temp search txt directory
+		cd "$script_directory_path/$download_temp_txt_search_dir"
+		#echo "$script_directory_path/$download_temp_txt_search_dir"
+		#exit
+		
+		# Run another instance of this script in the background so we can run a foreground spinner to indicate it's "working".
 		(../$0 -all -eptxt -q -s_override -pd 20) & # Put it into the background so we can use the spinner. Need to capture PID and kill it if we kill this script.
+		# Capture running pid for killing if need be.
 		subsearch_pid=$!
 
 		if ! $pretend_mode ; then # Needed to allow me to download all the cache file without searching within them. Used in the RSS Feed creation.
@@ -809,16 +884,11 @@ function do_searching() {
 			fi
 		fi
 
-		# call uncompress/compress function for cache.
-		do_cache "compress"
 
 	fi
 
 	# Search existing text transcripts
 	if $search_txt_local ; then
-
-		# call uncompress/compress function for cache.
-		do_cache "uncompress"
 
 		grep -w -l -s -i "$search_string" "$download_temp_txt_search_dir/*.txt" > .found
 
@@ -845,8 +915,6 @@ function do_searching() {
 			echo " "
 		fi
 
-		# call uncompress/compress function for cache.
-		do_cache "compress"
 	fi
 }
 
@@ -984,9 +1052,9 @@ function grab_item_link() {
 		# Strip carriage returns
 		gtemp=$(strip_text_cr "$gtemp")
 		# Convert to CacheFly URL
-		gtemp=$(convert_grc_url_to_cachefly "$gtemp" "$2")
+		#gtemp=$(convert_grc_url_to_cachefly "$gtemp" "$2")
 		# Convert some chars to HTML entitys for XML in the file.
-		gtemp=$(html_encode "$gtemp")
+		#gtemp=$(html_encode "$gtemp")
 		# Trim white spaces
 		gtemp=$(trim_str "$gtemp")
 
@@ -1028,7 +1096,7 @@ function do_rss_feed() {
 	if [[ ${check_program_exists_arr[${#check_program_exists_arr[*]}-1]} == "" ]] ; then
 		# Does not exist, exit script
 		echo " "
-		echo "Script Canceled: Script needs the tr and sed commands to strip CR's from windows formated text files and do some conversions for XML.."
+		echo "RSS Feed script canceled: needs the tr and sed commands to strip CR's from windows formated text files and do some conversions for XML.."
 		echo " "
 		exit
 	fi
@@ -1045,7 +1113,6 @@ function do_rss_feed() {
 
 	# This will setup all the data we need to parse into a RSS feed file.
 	do_searching				# Get the cache downloaded!
-	do_cache "uncompress"		# Uncompress for usage in creating the RSS Feed.
 	quite_mode="$tmp_quite_mode" # Set it back to whatever it was on first run.
 
 	# Create the header
@@ -1055,7 +1122,10 @@ function do_rss_feed() {
 	# Loop from 1 to -latest show number
 	for show_num in $(eval echo "$download_temp_txt_search_dir/sn-{001..$latest_episode}.txt");
 	do
-
+		
+		# Show that we are processing the data
+		spinner_step		
+		
 		if [ -f $show_num ]; then
 			#echo "Show Number: $show_num"
 
@@ -1118,7 +1188,13 @@ function do_rss_feed() {
 				# Pull Text information
 				rss_item_title="Transcription: "$(grab_item_title "$show_num")
 				rss_item_link=$(grab_item_link "$show_num" "txt")
-					rss_item_description=$(cat "$show_num")
+					
+					# Grab all the text or just to the limit rss_feed_text_limit
+					if [ "$rss_feed_text_limit" != "" ]; then
+						rss_item_description=$(head -n $rss_feed_text_limit "$show_num")
+					else
+						rss_item_description=$(cat "$show_num")
+					fi
 					# Strip carriage returns
 					rss_item_description=$(strip_text_cr "$rss_item_description")
 					# Convert some chars to HTML entitys for XML in the file.
@@ -1127,6 +1203,7 @@ function do_rss_feed() {
 					rss_item_description="<![CDATA["$(trim_str "$rss_item_description")"]]>"
 					# Change New Lines into <br/>
 					rss_item_description=$(echo "$rss_item_description" | sed 's=$=<br/>=')
+					
 				rss_item_date=$(grab_item_pubdate "$show_num")
 				rss_item_category="GRC/Text"
 
@@ -1149,27 +1226,16 @@ function do_rss_feed() {
 	# Reset the vars to normal.
 	search_txt_download=false
 	pretend_mode=false
-	# Compress the cache that we were reading from
-	do_cache "compress"
 
 	# Echo the entire RSS Feed text into a file
-	echo -e "$rss_feed_txt" > security_now.rss
+	if [ "$rss_filename" != "" ]; then
+		echo -e "$rss_feed_txt" > "$rss_filename"
+	else
+		echo -e "$rss_feed_txt" > security_now.rss
+	fi
 
 }
 
-function spinner() {
-    local pid=$1
-    local delay=0.4
-    local spinstr='|/-\'
-    while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
-        local temp=${spinstr#?}
-        printf " [%c]  " "$spinstr"
-        local spinstr=$temp${spinstr%"$temp"}
-        sleep $delay
-        printf "\b\b\b\b\b\b"
-    done
-    printf "    \b\b\b\b"
-}
 
 
 # Check arguments
@@ -1410,6 +1476,14 @@ until [ -z "$1" ]; do
 		create_rss_feeds=true
 
 	fi
+	if [ "$1" == "-rss-filename" ]; then
+		shift
+		rss_filename="$1"
+	fi
+	if [ "$1" == "-rss-limit" ]; then
+		shift
+		rss_feed_text_limit="$1"
+	fi
 
 	shift
 done
@@ -1554,6 +1628,14 @@ if ! $quite_mode && ! $search_txt_local && ! $search_txt_download ; then
 	echo " "
 fi
 
+
+# Nearly ready to do some work
+# Before doing so, uncompress the cache ONCE, instead of each call on; downloading, search, RSS feed
+# Faster this way
+		# call uncompress/compress function for cache.
+		do_cache "uncompress"
+
+
 # Before working,
 # Send Ping
 send_ping
@@ -1595,7 +1677,18 @@ if $create_rss_feeds || $create_rss_audio || $create_rss_video || $create_rss_te
 	if ! $pretend_mode ; then
 
 		echo "Creating RSS Feed file..."
+		
+		# Run another instance of this script in the background so we can run a foreground spinner to indicate it's "working".
+		#do_rss_feed & 	# Put it into the background so we can use the spinner. Need to capture PID and kill it if we kill this script.
 		do_rss_feed
+		
+		# Capture running pid for killing if need be.
+		#subsearch_pid=$! # capture of PID
+		#echo "Spinner PID: $subsearch_pid"
+		
+		#if ! $pretend_mode ; then # Needed to allow me to download all the cache file without searching within them. Used in the RSS Feed creation.
+		#	spinner $subsearch_pid # Run the spinner to show that the script is not stuck
+		#fi
 
 	else
 		echo "Not Creating RSS Feed file"
@@ -1605,6 +1698,12 @@ if $create_rss_feeds || $create_rss_audio || $create_rss_video || $create_rss_te
 
 	fi
 fi
+
+
+# call uncompress/compress function for cache.
+# This is too save space and preserve the text from rogue changes. Should remove all .txt files after compression.
+do_cache "compress"
+
 
 do_script_shutdown 0
 
