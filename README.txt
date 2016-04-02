@@ -45,7 +45,8 @@ Create RSS Feed file for RSS News Readers:
 -create-rss-video       Will create a RSS feed file for RSS News Readers containing the Show's video files.
 -create-rss-text        Will create a RSS feed file for RSS News Readers containing the Show's Notes and Transcriptions.
 -create-rss-feeds       Will create a RSS feed file for RSS News Readers containing all media files.
--rss-filename           Sets the path and filename of the rss feed file. If excluded, defaults to 'security_now.rss' in the current directory
+-rss-filename           Sets the path and filename of the rss feed file. If excluded, defaults to 'security_now.rss' in the current directory.
+-rss-limit              Limits how much text is placed in the RSS feed file from each episode. Default none. Try 100.
 ------------------------------------------------------------------------------------
 Misc Options:
 -p              Pretend mode. It will only spit out the headers and numbers. It will not download any files
