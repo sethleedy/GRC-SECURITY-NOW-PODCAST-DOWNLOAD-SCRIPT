@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Created: 2012-05-25
-# Last Updated: 2016-04-02
+# Last Updated: 2016-04-11
 
 # This script will have updates at http://techblog.sethleedy.name/?p=24172 website
 #and for development @ https://github.com/sethleedy/GRC-SECURITY-NOW-PODCAST-DOWNLOAD-SCRIPT
