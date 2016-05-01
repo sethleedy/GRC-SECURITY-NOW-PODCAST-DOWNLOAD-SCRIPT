@@ -81,6 +81,7 @@ create_rss_feeds=false
 create_rss_audio=false
 create_rss_video=false
 create_rss_text=false
+create_rss_mode=false
 rss_filename=""
 rss_feed_text_limit=""
 
@@ -271,23 +272,15 @@ function output_help() {
 
 function do_headers() {
 
-	# Convert the passed array into something usable
-	declare -a pass_arr=("${!1}") # Crazy syntax here !
-
 	# Output title.
 	echo " "
 	echo "Seth Leedy's GRC Security Now Downloader v$this_version"
+	echo "GitHub URL: https://github.com/sethleedy/GRC-SECURITY-NOW-PODCAST-DOWNLOAD-SCRIPT"
 	echo "Home URL: http://techblog.sethleedy.name/?p=24172"
-	echo "	Based off of the scripts by: Thomas@devtactix.com"
-	echo "	URL: http://techblog.sethleedy.name/?p=23980"
+	echo "##########################################################"
+	echo "# Latest Episode: $latest_episode $latest_episode_name"
+	echo "##########################################################"
 	echo " "
-
-	echo "Latest Episode is: $latest_episode"
-	echo "Latest Episode name is: $latest_episode_name"
-	echo " "
-	for e in "${pass_arr[@]}" ; do
-		echo "$e"
-	done
 
 }
 
@@ -436,6 +429,29 @@ function do_cache() {
 
 }
 
+# Scans the directory to find the highest number in the CACHE list of downloaded epi text files.
+function do_find_last_local_episode_cache() {
+	
+	# This will naturaly sort the epi filenames by the numbers within them, then extract the final number
+	# ls -v | tail -n1 | cut -d "-" -f 2 | cut -d "." -f 1
+	
+	echo $(ls -v .tmp_search_txt | tail -n1 | cut -d "-" -f 2 | cut -d "." -f 1)
+
+}
+
+# Scans the directory to find the highest number in the list of downloaded files.
+function do_find_last_local_episode() { # You can pass file types to search for instead of all files. "mp4"
+	
+	# This will naturaly sort the epi filenames by the numbers within them, then extract the final number
+	# ls -v | tail -n1 | cut -d "-" -f 2 | cut -d "." -f 1
+	
+	if [ "$1" != "" ]; then
+		echo $(ls -v *.$1 | tail -n1 | cut -d "-" -f 2 | cut -d "." -f 1)
+	else
+		echo $(ls -v | tail -n1 | cut -d "-" -f 2 | cut -d "." -f 1)
+	fi
+}
+
 function do_find_latest_episode() {
 	# Find the latest episode.
 	check_url "$find_latest_episode_url"
@@ -448,8 +464,10 @@ function do_find_latest_episode() {
 
 		if [ $? -eq 0 ]; then
 			if [ -e securitynow.htm ]; then
+				
+				# This is the variable to use in the rest of the code
 				latest_episode=$(grep -i '<font size=1>Episode&nbsp;#' securitynow.htm | head -n 1 | cut -d "#" -f 2 | cut -d " " -f 1)
-				# Voodoo Code
+				# This is the variable to use in the rest of the code
 				latest_episode_name=$(grep -i '<font size=1>Episode&nbsp;#' securitynow.htm | head -n 1 | sed -n '/<b>/,/<\/b>/p'  | sed -e '1s/.*<b>//' -e '$s/<\/b>.*//')
 
 				# Try and make a guesstimate about the amout of space needed for all episodes.
@@ -805,27 +823,66 @@ function spinner() {
     local pid=$1
     local delay=0.4
     local spinstr='|/-\'
-    while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
+    
+    while [ $(ps a | grep 21928 | grep -v grep | wc -l) != 0 ]; do
         local temp=${spinstr#?}
-        printf " [%c]  " "$spinstr"
+        printf "$2 [%c]  " "$spinstr"
         local spinstr=$temp${spinstr%"$temp"}
+        
         sleep $delay
-        printf "\b\b\b\b\b\b"
+        printf "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b"
     done
-    printf "    \b\b\b\b"
+    printf "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b"
 }
 
-tempspin=""
-spinstr='|/-\'
+spinner_step_tempspin=""
+spinner_step_spinstr='|/-\'
 function spinner_step() {
-    local delay=0.4
+    local delay=0.5
+    
+	spinner_step_tempspin=${spinner_step_spinstr#?}
+    printf "$1 [%c]  " "$spinner_step_spinstr"
+	spinner_step_spinstr=$spinner_step_tempspin${spinner_step_spinstr%"$spinner_step_tempspin"}
+	
+    sleep $delay
+    printf "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b"
 
-	tempspin=${spinstr#?}
-        printf " [%c]  " "$spinstr"
-	spinstr=$tempspin${spinstr%"$tempspin"}
-        sleep $delay
-        printf "\b\b\b\b\b\b"
+}
 
+#Simply wait on a process to finish based on its pid
+function wait_on_pid() {
+	while [ $(ps a | grep 21928 | grep -v grep | wc -l) ]; do
+        sleep .5
+    done
+
+}
+
+# Fill up the cache files from last downloaded +1 to latest.
+function fill_cache() {
+	
+	# Find the last epi number that was downloaded
+	last_local_cache_epi=$(do_find_last_local_episode_cache)
+	#echo "Cache: $last_local_cache_epi | Latest: $latest_episode"
+	let "last_local_cache_epi += 1" # Next one to download	
+	
+	if [ $last_local_cache_epi -lt $latest_episode ]; then
+		
+		# Change to the temp search txt directory
+		cd "$script_directory_path/$download_temp_txt_search_dir"
+		
+		# Run another instance of this script in the background so we can run a foreground spinner to indicate it's "working".
+		../$0 -ep $last_local_cache_epi:latest -eptxt -q -s_override -pd 20 & # Put it into the background so we can use the spinner. Need to capture PID and kill it if we kill this script.
+		# Capture running pid for killing if need be.
+		subsearch_pid=$!
+
+		if ! $quite_mode; then # Needed to allow me to download all the cache file without searching within them. Used in the RSS Feed creation.
+			spinner $subsearch_pid "Filling Cache: " # Run the spinner to show that the script is not stuck
+		else
+			wait_on_pid $subsearch_pid # Simply wait without output
+		fi
+
+		cd ..
+	fi
 }
 
 # Searching for text in episodes.
@@ -840,50 +897,34 @@ function do_searching() {
 			echo "Downloading files"
 		fi
 		
-		# Change to the temp search txt directory
-		cd "$script_directory_path/$download_temp_txt_search_dir"
-		#echo "$script_directory_path/$download_temp_txt_search_dir"
-		#exit
+		# Fill the cache up for searching in
+		fill_cache
 		
-		# Run another instance of this script in the background so we can run a foreground spinner to indicate it's "working".
-		(../$0 -all -eptxt -q -s_override -pd 20) & # Put it into the background so we can use the spinner. Need to capture PID and kill it if we kill this script.
-		# Capture running pid for killing if need be.
-		subsearch_pid=$!
+		# Search all the files and put results into a temp file
+		grep -w -l -s -i "$search_string" "$download_temp_txt_search_dir/*.txt" > .found
 
-		if ! $pretend_mode ; then # Needed to allow me to download all the cache file without searching within them. Used in the RSS Feed creation.
-			spinner $subsearch_pid # Run the spinner to show that the script is not stuck
-		fi
-
+		# Copy the files with the content we searched for into the special directory so it can be reviewed later
+		echo "Readying results"
+		mkdir "results_of_$search_string" >/dev/null 2>&1
+		cd "results_of_$search_string"
+		for f in $( cat ../.found ); do
+			cp -p "../$f" . >/dev/null 2>&1
+		done
 		cd ..
 
-		if ! $pretend_mode ; then # Needed to allow me to download all the cache file without searching within them. Used in the RSS Feed creation.
-			# Search all the files and put results into a temp file
-			grep -w -l -s -i "$search_string" "$download_temp_txt_search_dir/*.txt" > .found
+		# Display the first result just for show.
+		if ! $quite_mode ; then
+			echo " "
+			echo "First Result:"
+			first_file=$(ls "results_of_$search_string" | cut -f 1 -d " " | head -n 1)
+			grep --color=auto -w -n -i "$search_string" "results_of_$search_string/$first_file"
 
-			# Copy the files with the content we searched for into the special directory so it can be reviewed later
-			echo "Readying results"
-			mkdir "results_of_$search_string" >/dev/null 2>&1
-			cd "results_of_$search_string"
-			for f in $( cat ../.found ); do
-				cp -p "../$f" . >/dev/null 2>&1
-			done
-			cd ..
-
-			# Display the first result just for show.
-			if ! $quite_mode ; then
-				echo " "
-				echo "First Result:"
-				first_file=$(ls "results_of_$search_string" | cut -f 1 -d " " | head -n 1)
-				grep --color=auto -w -n -i "$search_string" "results_of_$search_string/$first_file"
-
-				# Inform user where to find the results.
-				echo " "
-				echo "Your search results are in $(pwd)/results_of_$search_string"
-				echo "Remove the directory when your are finished."
-				echo " "
-			fi
+			# Inform user where to find the results.
+			echo " "
+			echo "Your search results are in $(pwd)/results_of_$search_string"
+			echo "Remove the directory when your are finished."
+			echo " "
 		fi
-
 
 	fi
 
@@ -1103,31 +1144,30 @@ function do_rss_feed() {
 
 	# We need to first download ALL the Security Now text files to find all the show TITLES,DATES,DESCRIPTIONS,CONTENT,etc
 	# From the files, we can create a RSS Feed file.
-	# Remember to swap out the GRC urls for CacheFly. If this provider changes, comment out the function and it will work with GRC's URLs(if hosted there).
+	# Remember to swap out the GRC urls for CacheFly. If this provider changes, comment out the function and it will work with GRC's URLs(if hosted there), Steve Gibson told me to not use them !!.
 
-	# UnCompress and then Download All TEXT files to cache(To get any missing and get the latest). Compress after working RSS.
-	search_txt_download=true 	# Set to true so we can get the cache filled
-	pretend_mode=true			# Set so we do not do a search when getting the cache filled. Should be silent in the background too.
-	tmp_quite_mode="$quite_mode" # Grab whatever it is currently set too
-	quite_mode=false				# Keep this operation silent. Internal use here.
-
-	# This will setup all the data we need to parse into a RSS feed file.
-	do_searching				# Get the cache downloaded!
-	quite_mode="$tmp_quite_mode" # Set it back to whatever it was on first run.
+	# This will setup all the text data we need to parse into a RSS feed file.
+	fill_cache					# Get the cache downloaded!
 
 	# Create the header
-	rss_header_txt="$(rss_header)"
+	rss_header_txt=$(rss_header)
 
 	# Create the ITEMs in the Feed.
-	# Loop from 1 to -latest show number
-	for show_num in $(eval echo "$download_temp_txt_search_dir/sn-{001..$latest_episode}.txt");
+	# Loop from 001 to -latest show number
+	for show_num in $(eval echo "$download_temp_txt_search_dir/sn-{001..$latest_episode}.txt"); # This was starting at number 9 of the 1-### episodes. Weird.
+	#for show_num in {001..$latest_episode};
 	do
-		
-		# Show that we are processing the data
-		spinner_step		
+		#echo "Numbers: $show_num";
 		
 		if [ -f $show_num ]; then
-			#echo "Show Number: $show_num"
+		
+			# Show that we are processing the data
+			spinner_step "Cunching Epi: $show_num "
+		
+			# Show Epi number that is being worked on
+			#echo "\rEpi: $show_num"
+			#printf "\r%-${COLUMNS}s" "Epi: $show_num"
+			#echo -ne "\033[2K Epi: $show_num"
 
 			# Which items are we getting ? Audio, Video, Text, All ?
 			# Audio HQ
@@ -1222,10 +1262,6 @@ function do_rss_feed() {
 
 	# Combine it all and echo it out for capture
 	rss_feed_txt="$rss_header_txt \n $rss_body_txt \n $rss_footer_txt"
-
-	# Reset the vars to normal.
-	search_txt_download=false
-	pretend_mode=false
 
 	# Echo the entire RSS Feed text into a file
 	if [ "$rss_filename" != "" ]; then
@@ -1462,19 +1498,19 @@ until [ -z "$1" ]; do
 
 	if [ "$1" == "-create-rss-audio" ]; then
 		create_rss_audio=true
-
+		create_rss_mode=true
 	fi
 	if [ "$1" == "-create-rss-video" ]; then
 		create_rss_video=true
-
+		create_rss_mode=true
 	fi
 	if [ "$1" == "-create-rss-text" ]; then
 		create_rss_text=true
-
+		create_rss_mode=true
 	fi
 	if [ "$1" == "-create-rss-feeds" ]; then
 		create_rss_feeds=true
-
+		create_rss_mode=true
 	fi
 	if [ "$1" == "-rss-filename" ]; then
 		shift
@@ -1527,15 +1563,15 @@ fi
 
 #echo "ahq: $download_audio_hq, alq: $download_audio_lq, vhq: $download_video_hq, vlq: $download_video_lq, p: $pretend_mode, all: $download_all, latest: $download_latest, download_episode_number: $download_episode_number, Episode: start:$EPISODE to:$EPISODE_TO"
 
-if ! $search_txt_local && ! $search_txt_download ; then
-	if ! $do_episode_downloading; then
-		add_to_headers+=("What was I to download ? Please specify any/all of:")
-		add_to_headers+=("-ep  -all  -latest")
-		add_to_headers+=("-ahq  -alq  -vhd  -vhq  -vlq  -eptxt  -eppdf  -ephtml -epnotes")
-		add_to_headers+=(" ")
+#if ! $search_txt_local && ! $search_txt_download ; then
+	#if ! $do_episode_downloading; then
+		#add_to_headers+=("What was I to download ? Please specify any/all of:")
+		#add_to_headers+=("-ep  -all  -latest")
+		#add_to_headers+=("-ahq  -alq  -vhd  -vhq  -vlq  -eptxt  -eppdf  -ephtml -epnotes")
+		#add_to_headers+=(" ")
 
-	fi
-fi
+	#fi
+#fi
 
 # Set episodes
 if $download_episode_number ; then
@@ -1623,7 +1659,7 @@ if ! $quite_mode ; then
 fi
 
 #echo "ahq: $download_audio_hq, alq: $download_audio_lq, vhq: $download_video_hq, vlq: $download_video_lq, p: $pretend_mode, all: $download_all, latest: $download_latest, download_episode_number: $download_episode_number"
-if ! $quite_mode && ! $search_txt_local && ! $search_txt_download ; then
+if ! $quite_mode && ! $search_txt_local && ! $search_txt_download && ! $create_rss_mode; then
 	echo "Downloading episodes $(echo $EPISODE | sed 's/0*//' | sed 's/-*//') to $(echo $EPISODE_TO | sed 's/0*//' | sed 's/-*//')"
 	echo " "
 fi
@@ -1702,8 +1738,9 @@ fi
 
 # call uncompress/compress function for cache.
 # This is too save space and preserve the text from rogue changes. Should remove all .txt files after compression.
-do_cache "compress"
-
+if ! $search_echo_override_mode ; then # This is for the cache download. We don't want to compress it after downloading it. See fill_cache function
+	do_cache "compress"
+fi
 
 do_script_shutdown 0
 
