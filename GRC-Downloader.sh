@@ -1,35 +1,38 @@
 #!/bin/bash
 
 # Created: 2012-05-25
-# Last Updated: 2014-06-07
+# Last Updated: 2016-04-02
 
-#This script will have updates on the http://techblog.sethleedy.name/ website.
-# URL: http://techblog.sethleedy.name/?p=24172
+# This script will have updates at http://techblog.sethleedy.name/?p=24172 website
+#and for development @ https://github.com/sethleedy/GRC-SECURITY-NOW-PODCAST-DOWNLOAD-SCRIPT
+
 
 # Initialization.
-this_version="1.6"
-
+this_version="1.7"
+curr_directory_name="${PWD##*/}"
+script_directory_path="$(pwd)"
 find_latest_episode_url="http://www.grc.com/securitynow.htm"
 
-#EPISODE_NAME_AUDIO_HQ_URL="http://media.grc.com/sn/"
-EPISODE_NAME_AUDIO_LQ_URL="http://media.grc.com/sn/"
+#EPISODE_NAME_AUDIO_HQ_URL="http://media.grc.com/sn"
+EPISODE_NAME_AUDIO_LQ_URL="http://media.grc.com/sn"
 # New URLs, source CacheFly. - http://twit.cachefly.net/audio/sn/sn0457/sn0457.mp3
-EPISODE_NAME_AUDIO_HQ_URL="http://twit.cachefly.net/audio/sn/"
+EPISODE_NAME_AUDIO_HQ_URL="http://twit.cachefly.net/audio/sn"
 
 # Is there a low quality .MP3 on CacheFly ? If made, change the tacked on filename and the directory before it too. Follow the $EPISODE_NAME_AUDIO_HQ_URL for example.
-#EPISODE_NAME_AUDIO_LQ_URL="http://twit.cachefly.net/audio/sn/"
+#EPISODE_NAME_AUDIO_LQ_URL="http://twit.cachefly.net/audio/sn"
 
-EPISODE_NAME_AUDIO_TEXT_URL="http://www.grc.com/sn/"
-EPISODE_NAME_AUDIO_PDF_URL="http://www.grc.com/sn/"
-EPISODE_NAME_AUDIO_HTML_URL="http://www.grc.com/sn/"
-EPISODE_NAME_AUDIO_SHOWNOTES_URL="http://www.grc.com/sn/"
-EPISODE_NAME_VIDEO_HD_URL="http://twit.cachefly.net/video/sn/"
+EPISODE_NAME_AUDIO_TEXT_URL="http://www.grc.com/sn"
+EPISODE_NAME_AUDIO_PDF_URL="http://www.grc.com/sn"
+EPISODE_NAME_AUDIO_HTML_URL="http://www.grc.com/sn"
+EPISODE_NAME_AUDIO_SHOWNOTES_URL="http://www.grc.com/sn"
+EPISODE_NAME_VIDEO_HD_URL="http://twit.cachefly.net/video/sn"
 #twit.cachefly.net/video/sn/sn0457/sn0457_h264m_1280x720_1872.mp4
-EPISODE_NAME_VIDEO_HQ_URL="http://twit.cachefly.net/video/sn/"
+EPISODE_NAME_VIDEO_HQ_URL="http://twit.cachefly.net/video/sn"
 #twit.cachefly.net/video/sn/sn0435/sn0435_h264m_864x480_500.mp4
-EPISODE_NAME_VIDEO_LQ_URL="http://twit.cachefly.net/video/sn/"
+EPISODE_NAME_VIDEO_LQ_URL="http://twit.cachefly.net/video/sn"
 #twit.cachefly.net/video/sn/sn0435/sn0435_h264b_640x368_256.mp4
 skip_wget_digital_check=""
+wget_agent_name="GRCDownloader_v$this_version"
 
 # Sizes in Kilo's
 DISK_SPACE=1000
@@ -39,8 +42,8 @@ DISK_SPACE_MIN_FOR_ONE_HD_VIDEO=2000000
 DISK_SPACE_MIN_FOR_ALL_HD_VIDEO=1000000000 # Est for 450 HD videos. This will not all be used, as not all videos were recorded in HD.
 DISK_SPACE_MIN_FOR_ONE_VIDEO=600000 # 600 MB for HQ version
 DISK_SPACE_MIN_FOR_ALL_VIDEO=20000000
-DISK_SPACE_MIN_FOR_ONE_TEXT=35500
-DISK_SPACE_MIN_FOR_ALL_TEXT=12602500
+DISK_SPACE_MIN_FOR_ONE_TEXT=35
+DISK_SPACE_MIN_FOR_ALL_TEXT=12000
 DISK_SPACE_MIN_FOR_ONE_PDF=67450
 DISK_SPACE_MIN_FOR_ALL_PDF=23944750
 DISK_SPACE_MIN_FOR_ONE_HTML=67450
@@ -73,10 +76,25 @@ search_txt_local=false
 search_txt_download=false
 search_string=""
 search_echo_override_mode=false
+do_episode_downloading=false
+create_rss_feeds=false
+create_rss_audio=false
+create_rss_video=false
+create_rss_text=false
+create_rss_mode=false
+rss_filename=""
+rss_feed_text_limit=""
 
-# Terminal variables
-ceol=`tput el`
 
+# RSS Feed Variables
+HTTPLINK=""
+CHANNELFEEDTITLE="GRC Security Now RSS Feed"
+CHANNELFEEDLINK="http://www.grc.com/securitynow.htm"
+CHANNELFEEDCREATIONLINK="http://techblog.sethleedy.name/sn-feed.rss"
+CHANNELFEEDDESC="Listing all episodes of {Audio|Video|Text|All Types}"
+CHANNELIMAGE="https://www.grc.com/image/snonwhite.gif"
+
+Dev_Coder_email="code@sethleedy.name"
 
 # Send a "Ping" back to my server. This allows me to know that my script is being used out in the wild.
 # The request will show up in my blog and I can parse it later for stats.
@@ -85,7 +103,14 @@ ceol=`tput el`
 function send_ping() {
 
 	datetime=`date '+%Y-%m-%d-%R'`
-	wget $skip_wget_digital_check -qb -O /dev/null -U "GRCDownloader_v$this_version" "http://techblog.sethleedy.name/do_count.php?datetime=$datetime&agent_code=GRCDownloader_v$this_version" 1>/dev/null 2>&1
+	wget $skip_wget_digital_check -qb -O /dev/null -U "$wget_agent_name" "http://techblog.sethleedy.name/do_count.php?datetime=$datetime&agent_code=GRCDownloader_v$this_version" >/dev/null 2>&1
+
+}
+
+# Helper Function to remove annoying CR's from text files that are encoded in DOS format. When I grab the strings from Security Now text files, it picks them up too. This will remove them.
+function strip_text_cr() {
+
+	echo "$1" | tr -d "\r"
 
 }
 
@@ -108,12 +133,12 @@ function control_c() {
 	# Kill all current wget downloads
 	if [ -z "${pid+xxx}" ]; then # We may not have yet reached the point in the script where this was created.
 		for r in "${pid[@]}" ; do
-			kill $r 1>/dev/null 2>&1
+			kill $r >/dev/null 2>&1
 		done
 	fi
 
 	# Kill the subsearch shell if running
-	kill $subsearch_pid 1>/dev/null 2>&1
+	kill $subsearch_pid >/dev/null 2>&1
 
 	echo "Script killed!"
 
@@ -127,11 +152,11 @@ function control_c() {
 # See if the URL is valid
 function check_url() {
 
-	wget $skip_wget_digital_check -q --spider "$1"
+	wget $skip_wget_digital_check -U "$wget_agent_name" -q --spider "$1"
 	returncode=$?
 
 	if [ $returncode != 0 ]; then
-		wget --no-check-certificate -q --spider "$1"
+		wget --no-check-certificate -U "$wget_agent_name" -q --spider "$1"
 		returncode=$?
 		if [ $returncode == 0 ]; then
 			echo " "
@@ -197,10 +222,15 @@ function output_help() {
 	echo " "
 	echo "Options are as follows:"
 	echo "-ep		Specifies the episodes to download. You can specifiy 1 episode via just the number. Eg: -ep 25"
-	echo "	It also supports a range separated by a colon. Eg: -ep 1:25"
+	echo "		It also supports a range separated by a colon. Eg: -ep 1:25"
+	echo "		OR -ep 250:latest to grab all episodes from number 250 to whatever the latest is."
+	echo "-latest		Download the latest episode. It will try to check for the latest whenever the script is run."
+	echo "		If this is flagged, it will put the latest episode as the file to download."
+	echo "-all		This will download all episodes from 1 to -latest"
+	echo "		Note: If no options are used to indicate what episode to download, the script will search the local directoy for the latest episode and download the next one automatically."
 	echo " "
-	echo "	Note: If no options are used to indicate what episode to download, the script will search the local directoy for the latest episode and download the next one automatically."
-	echo " "
+
+	echo "Combine the above option(s) with one or more in the next section:"
 	echo "-ahq		Download High Quality Audio format."
 	echo "-alq		Download Low Quality Audio format"
 	echo "-vhd		Download High Definition(HD) Quality Video format"
@@ -210,21 +240,29 @@ function output_help() {
 	echo "-eppdf		Download the pdf transcript of the episode"
 	echo "-ephtml		Download the html transcript of the episode"
 	echo "-epnotes	Download the show notes of the episode(Not all available)"
-	echo "-latest		Download the latest episode. It will try to check for the latest whenever the script is run."
-	echo "	If this is flagged, it will put the latest episode as the file to download."
-	echo " "
+
+	echo "------------------------------------------------------------------------------------"
 	echo "Search Mode:"
 	echo "-dandstxt	Download and Search, will download all text episodes and search insensitively for the text you enter here."
 	echo "	OR"
 	echo "-stxt		Search insensitively the local directory .txt episodes for text you enter here."
-	echo " "
-	echo "-all		This will download all episodes from 1 to -latest"
+	echo "------------------------------------------------------------------------------------"
+	echo "Create RSS Feed file for RSS News Readers:"
+	echo "-create-rss-audio	Will create a RSS feed file for RSS News Readers containing the Show's audio files."
+	echo "-create-rss-video	Will create a RSS feed file for RSS News Readers containing the Show's video files."
+	echo "-create-rss-text	Will create a RSS feed file for RSS News Readers containing the Show's Notes and Transcriptions."
+	echo "-create-rss-feeds	Will create a RSS feed file for RSS News Readers containing all media files."
+	echo "-rss-filename		Sets the path and filename of the rss feed file. If excluded, defaults to 'security_now.rss' in the current directory."
+	echo "-rss-limit		Limits how much text is placed in the RSS feed file from each episode. Default none. Try 100."
+	echo "------------------------------------------------------------------------------------"
+	echo "Misc Options:"
+
 	echo "-p		Pretend mode. It will only spit out the headers and numbers. It will not download any files"
-	echo "	(except the webpage needed to find the latest episodes)"
-	echo " "
+	echo "			(except the webpage needed to find the latest episodes)"
 	echo "-q		Quite mode. Minimal on search and nothing but errors on episode downloads will be outputted to the screen."
 	echo "-pd		Specify how many parallel downloads when downloading more than one. Eg: -pd 2"
-	echo "-skip-digital-cert-check	Sometimes, if running through a proxy, wget will refuse to download from GRC. Try this to skip the digital certificate safety check."
+	echo "-skip-digital-cert-check"
+	echo "		Sometimes, if running through a proxy, wget will refuse to download from GRC. Try this to skip the digital certificate safety check."
 	echo "-h		This help output."
 	echo " "
 
@@ -234,23 +272,15 @@ function output_help() {
 
 function do_headers() {
 
-	# Convert the passed array into something usable
-	declare -a pass_arr=("${!1}") # Crazy syntax here !
-
 	# Output title.
 	echo " "
 	echo "Seth Leedy's GRC Security Now Downloader v$this_version"
+	echo "GitHub URL: https://github.com/sethleedy/GRC-SECURITY-NOW-PODCAST-DOWNLOAD-SCRIPT"
 	echo "Home URL: http://techblog.sethleedy.name/?p=24172"
-	echo "	Based off of the scripts by: Thomas@devtactix.com"
-	echo "	URL: http://techblog.sethleedy.name/?p=23980"
+	echo "##########################################################"
+	echo "# Latest Episode: $latest_episode $latest_episode_name"
+	echo "##########################################################"
 	echo " "
-
-	echo "Latest Episode is: $latest_episode"
-	echo "Latest Episode name is: $latest_episode_name"
-	echo " "
-	for e in "${pass_arr[@]}" ; do
-		echo "$e"
-	done
 
 }
 
@@ -258,7 +288,12 @@ function do_headers() {
 function do_cache() {
 
 		# Create temp download area
-		mkdir $download_temp_txt_search_dir >/dev/null 2>&1 # make silent in case it already exists.
+		curr_directory_name_temp=${PWD##*/} # Get the current directory name
+		if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then # make sure we are not already inside the directory to search files
+			if [ ! -d "$download_temp_txt_search_dir" ]; then # If it does not exists already
+				mkdir $download_temp_txt_search_dir >/dev/null 2>&1 # Create the directory to hold all text epi to search for text within.
+			fi
+		fi
 
 		# If compressed cache exists, uncompress it.
 		# Check to see what program we can use to compress/uncompress the cache.
@@ -267,9 +302,10 @@ function do_cache() {
 		check_program_exists_arr[2]="zip"
 		check_program_exists_arr[3]="bzip2"
 		check_program_exists_arr[4]="7z"
+
 		check_program_exists_multi check_program_exists_arr[@]
 
-		if [[ ${check_program_exists_arr[${#check_program_exists_arr[*]}]} != "" ]] ; then
+		if [[ ${check_program_exists_arr[${#check_program_exists_arr[*]}-1]} != "" ]] ; then
 			if ! $quite_mode ; then
 				echo "Using compression program: ${check_program_exists_arr[${#check_program_exists_arr[*]}]}"
 			fi
@@ -277,64 +313,97 @@ function do_cache() {
 			# Use proper commands for which program is available
 			case "${check_program_exists_arr[${#check_program_exists_arr[*]}]}" in
 			'gzip')
-				cd $download_temp_txt_search_dir/
+				
+				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
+					cd $download_temp_txt_search_dir
+					skip_cd=false
+				else
+					skip_cd=true
+				fi
 				if [[ "$1" == "uncompress" ]]; then
 					if ! $quite_mode ; then
 						echo "Uncompressing cache"
 					fi
-					gunzip *.txt 1>/dev/null 2>&1
+					gunzip *.txt >/dev/null 2>&1
 				elif [[ "$1" == "compress" ]]; then
 					if ! $quite_mode ; then
 						echo "Compressing cache"
 					fi
-					cmd="gzip *.txt 1>/dev/null 2>&1"
+					cmd="gzip *.txt >/dev/null 2>&1"
 					$cmd &
 				fi
-				cd ..
+				
+				if ! $skip_cd; then
+					cd ..
+				fi
 				;;
 			'zip')
-				cd $download_temp_txt_search_dir/
+				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
+					cd $download_temp_txt_search_dir
+					skip_cd=false
+				else
+					skip_cd=true
+				fi
 				if [[ "$1" == "uncompress" ]]; then
 					if ! $quite_mode ; then
 						echo "Uncompressing cache"
 					fi
-					unzip -qq -o cache.zip 1>/dev/null 2>&1
-					rm cache.zip >/dev/null
+					unzip -qq -o cache.zip >/dev/null 2>&1
+					rm -f cache.zip >/dev/null
 				elif [[ "$1" == "compress" ]]; then
 					if ! $quite_mode ; then
 						echo "Compressing cache"
 					fi
-					cmd="zip -9 -qq cache.zip *.txt 1>/dev/null 2>&1; rm *.txt >/dev/null"
+					cmd="zip -9 -qq cache.zip *.txt >/dev/null 2>&1; rm -f *.txt >/dev/null"
 					$cmd &
 				fi
-				cd ..
+				
+				if ! $skip_cd; then
+					cd ..
+				fi
 				;;
 			'bzip2')
-				cd $download_temp_txt_search_dir/
+				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
+					cd $download_temp_txt_search_dir
+					skip_cd=false
+				else
+					skip_cd=true
+				fi
 				if [[ "$1" == "uncompress" ]]; then
 					if ! $quite_mode ; then
 						echo "Uncompressing cache"
 					fi
-					cmd="find *.bz2 -type f -exec bunzip2 {} ;"
-					$cmd &
+					cmd="find *.bz2 -type f -exec bunzip2 -q {} ;"
+					$cmd >/dev/null 2>&1
 				elif [[ "$1" == "compress" ]]; then
 					if ! $quite_mode ; then
 						echo "Compressing cache"
 					fi
-					#cmd="bzip2 -sqf -9 *.txt 1>/dev/null 2>&1"
-					cmd="find *.txt -type f -exec bzip2 -sqf -9 {} ;"
-					$cmd &
+					#cmd="bzip2 -sqf -9 *.txt >/dev/null 2>&1"
+					cmd="find *.txt -type f -exec bzip2 -q -sqf -9 {} ;"
+					$cmd >/dev/null 2>&1
 				fi
-				cd ..
+				
+				if ! $skip_cd; then
+					cd ..
+				fi
 				;;
 			'7z')
-				cd $download_temp_txt_search_dir/
+				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
+					cd $download_temp_txt_search_dir
+					skip_cd=false
+				else
+					skip_cd=true
+				fi
+				#echo "$curr_directory_name_temp"
+				#echo "$download_temp_txt_search_dir"
+				#exit
 				if [[ "$1" == "uncompress" ]]; then
 					if ! $quite_mode ; then
 						echo "Uncompressing cache"
 					fi
-					7z e cache.7z 1>/dev/null 2>&1
-					rm cache.7z >/dev/null
+					7z e cache.7z >/dev/null 2>&1
+					rm -f cache.7z >/dev/null 2>&1
 				elif [[ "$1" == "compress" ]]; then
 					if ! $quite_mode ; then
 						echo "Compressing cache"
@@ -342,10 +411,15 @@ function do_cache() {
 
 					# Run compression in background so there is no delay on the terminal
 					# This may cause issues if the user reuses the script immediately. eg: deleting files at the same time as rechecking or downloading on the new script run.
-					cmd="7z a -mx=9  cache.7z *.txt 1>/dev/null 2>&1; rm *.txt >/dev/null"
-					$cmd &
+					cmd="7z a -mx=9 cache.7z *.txt"
+					$cmd >/dev/null 2>&1
+					cmd="rm -f *.txt"
+					$cmd >/dev/null 2>&1
 				fi
-				cd ..
+				
+				if ! $skip_cd; then
+					cd ..
+				fi
 			   ;;
 			esac
 
@@ -353,6 +427,29 @@ function do_cache() {
 			echo "No compression program found. Install a compression program like 7z or bzip2 to compress the cached search files."
 		fi
 
+}
+
+# Scans the directory to find the highest number in the CACHE list of downloaded epi text files.
+function do_find_last_local_episode_cache() {
+	
+	# This will naturaly sort the epi filenames by the numbers within them, then extract the final number
+	# ls -v | tail -n1 | cut -d "-" -f 2 | cut -d "." -f 1
+	
+	echo $(ls -v .tmp_search_txt | tail -n1 | cut -d "-" -f 2 | cut -d "." -f 1)
+
+}
+
+# Scans the directory to find the highest number in the list of downloaded files.
+function do_find_last_local_episode() { # You can pass file types to search for instead of all files. "mp4"
+	
+	# This will naturaly sort the epi filenames by the numbers within them, then extract the final number
+	# ls -v | tail -n1 | cut -d "-" -f 2 | cut -d "." -f 1
+	
+	if [ "$1" != "" ]; then
+		echo $(ls -v *.$1 | tail -n1 | cut -d "-" -f 2 | cut -d "." -f 1)
+	else
+		echo $(ls -v | tail -n1 | cut -d "-" -f 2 | cut -d "." -f 1)
+	fi
 }
 
 function do_find_latest_episode() {
@@ -363,12 +460,14 @@ function do_find_latest_episode() {
 			rm -f securitynow.htm
 		fi
 
-		wget $skip_wget_digital_check -q -O securitynow.htm "$find_latest_episode_url"
+		wget $skip_wget_digital_check -U "$wget_agent_name" -q -O securitynow.htm "$find_latest_episode_url"
 
 		if [ $? -eq 0 ]; then
 			if [ -e securitynow.htm ]; then
+				
+				# This is the variable to use in the rest of the code
 				latest_episode=$(grep -i '<font size=1>Episode&nbsp;#' securitynow.htm | head -n 1 | cut -d "#" -f 2 | cut -d " " -f 1)
-				# Voodoo Code
+				# This is the variable to use in the rest of the code
 				latest_episode_name=$(grep -i '<font size=1>Episode&nbsp;#' securitynow.htm | head -n 1 | sed -n '/<b>/,/<\/b>/p'  | sed -e '1s/.*<b>//' -e '$s/<\/b>.*//')
 
 				# Try and make a guesstimate about the amout of space needed for all episodes.
@@ -426,14 +525,14 @@ function do_downloading() {
 
 				#EPISODE_Cur=$( printf "%03d\n" $(( 10#$d)) )
 				EPISODE_Cur=$( printf "%.4d" $d )
-				#EPISODE_NAME_AUDIO_HQ="${EPISODE_NAME_AUDIO_HQ_URL}sn-${EPISODE_Cur}.mp3"
+				#EPISODE_NAME_AUDIO_HQ="${EPISODE_NAME_AUDIO_HQ_URL}/sn-${EPISODE_Cur}.mp3"
 				EPISODE_NAME_AUDIO_HQ="${EPISODE_NAME_AUDIO_HQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}.mp3"
 
 				if ! $quite_mode ; then
 					echo "Downloading HQ audio episode ${EPISODE_Cur}..."
 				fi
 
-				tpid=`wget $skip_wget_digital_check -N -c -qb "$EPISODE_NAME_AUDIO_HQ"`
+				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_HQ"`
 				ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
 				pid[$d]=$ttpid
 
@@ -452,13 +551,13 @@ function do_downloading() {
 				fi
 
 				EPISODE_Cur=$( printf "%.3d" $d) # Audio is 3 0s long. Fix this after episode 999.
-				EPISODE_NAME_AUDIO_LQ="${EPISODE_NAME_AUDIO_LQ_URL}sn-${EPISODE_Cur}-lq.mp3"
+				EPISODE_NAME_AUDIO_LQ="${EPISODE_NAME_AUDIO_LQ_URL}/sn-${EPISODE_Cur}-lq.mp3"
 
 				if ! $quite_mode ; then
 					echo "Downloading LQ audio episode ${EPISODE_Cur}..."
 				fi
 
-				tpid=`wget $skip_wget_digital_check -N -c -qb "$EPISODE_NAME_AUDIO_LQ"`
+				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_LQ"`
 				ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
 				pid[$d]=$ttpid
 
@@ -479,7 +578,7 @@ function do_downloading() {
 				fi
 
 				EPISODE_Cur=$( printf "%.3d" $d ) # Audio is three 0s long. Fix this after episode 999.
-				EPISODE_NAME_AUDIO_TEXT="${EPISODE_NAME_AUDIO_TEXT_URL}sn-${EPISODE_Cur}.txt"
+				EPISODE_NAME_AUDIO_TEXT="${EPISODE_NAME_AUDIO_TEXT_URL}/sn-${EPISODE_Cur}.txt"
 
 				if ! $quite_mode || ( $search_echo_override_mode && ! $quite_mode ) ; then
 					if $search_echo_override_mode ; then
@@ -490,7 +589,7 @@ function do_downloading() {
 
 				fi
 
-				tpid=`wget $skip_wget_digital_check -N -c -qb "$EPISODE_NAME_AUDIO_TEXT"`
+				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_TEXT"`
 				ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
 				pid[$d]=$ttpid
 
@@ -510,13 +609,13 @@ function do_downloading() {
 				fi
 
 				EPISODE_Cur=$( printf "%.3d" $d ) # Audio is 3 0s long. Fix this after episode 999.
-				EPISODE_NAME_AUDIO_PDF="${EPISODE_NAME_AUDIO_PDF_URL}sn-${EPISODE_Cur}.pdf"
+				EPISODE_NAME_AUDIO_PDF="${EPISODE_NAME_AUDIO_PDF_URL}/sn-${EPISODE_Cur}.pdf"
 
 				if ! $quite_mode ; then
 					echo "Downloading episode text ${EPISODE_Cur}..."
 				fi
 
-				tpid=`wget $skip_wget_digital_check -N -c -qb "$EPISODE_NAME_AUDIO_PDF"`
+				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_PDF"`
 				ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
 				pid[$d]=$ttpid
 
@@ -536,13 +635,13 @@ function do_downloading() {
 				fi
 
 				EPISODE_Cur=$( printf "%.3d" $d ) # Audio is 3 0s long. Fix this after episode 999.
-				EPISODE_NAME_AUDIO_HTML="${EPISODE_NAME_AUDIO_HTML_URL}sn-${EPISODE_Cur}.htm"
+				EPISODE_NAME_AUDIO_HTML="${EPISODE_NAME_AUDIO_HTML_URL}/sn-${EPISODE_Cur}.htm"
 
 				if ! $quite_mode ; then
 					echo "Downloading episode text ${EPISODE_Cur}..."
 				fi
 
-				tpid=`wget $skip_wget_digital_check -N -c -qb "$EPISODE_NAME_AUDIO_HTML"`
+				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_HTML"`
 				ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
 				pid[$d]=$ttpid
 
@@ -562,13 +661,13 @@ function do_downloading() {
 				fi
 
 				EPISODE_Cur=$( printf "%.3d" $d ) # Audio is 3 0s long. Fix this after episode 999.
-				EPISODE_NAME_AUDIO_SHOWNOTES="${EPISODE_NAME_AUDIO_SHOWNOTES_URL}sn-${EPISODE_Cur}-notes.pdf"
+				EPISODE_NAME_AUDIO_SHOWNOTES="${EPISODE_NAME_AUDIO_SHOWNOTES_URL}/sn-${EPISODE_Cur}-notes.pdf"
 
 				if ! $quite_mode ; then
 					echo "Downloading episode show notes ${EPISODE_Cur}..."
 				fi
 
-				tpid=`wget $skip_wget_digital_check -N -c -qb "$EPISODE_NAME_AUDIO_SHOWNOTES"`
+				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_SHOWNOTES"`
 				ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
 				pid[$d]=$ttpid
 
@@ -588,7 +687,7 @@ function do_downloading() {
 				fi
 
 				EPISODE_Cur=$( printf "%.4d" $d ) # Video is 4 0s long
-				EPISODE_NAME_VIDEO_HD="${EPISODE_NAME_VIDEO_HD_URL}sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264m_1280x720_1872.mp4"
+				EPISODE_NAME_VIDEO_HD="${EPISODE_NAME_VIDEO_HD_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264m_1280x720_1872.mp4"
 				#echo $EPISODE_NAME_VIDEO_HD
 
 				check_url "$EPISODE_NAME_VIDEO_HD"
@@ -597,7 +696,7 @@ function do_downloading() {
 						echo "Downloading HD video episode ${EPISODE_Cur}..."
 					fi
 
-					tpid=`wget $skip_wget_digital_check -N -c -qb "$EPISODE_NAME_VIDEO_HD"`
+					tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_HD"`
 					ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
 					pid[$d]=$ttpid
 				else
@@ -622,7 +721,7 @@ function do_downloading() {
 				fi
 
 				EPISODE_Cur=$( printf "%.4d" $d ) # Video is 4 0s long
-				EPISODE_NAME_VIDEO_HQ="${EPISODE_NAME_VIDEO_HQ_URL}sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264m_864x480_500.mp4"
+				EPISODE_NAME_VIDEO_HQ="${EPISODE_NAME_VIDEO_HQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264m_864x480_500.mp4"
 				#echo $EPISODE_NAME_VIDEO_HQ
 
 				check_url "$EPISODE_NAME_VIDEO_HQ"
@@ -631,7 +730,7 @@ function do_downloading() {
 						echo "Downloading HQ video episode ${EPISODE_Cur}..."
 					fi
 
-					tpid=`wget $skip_wget_digital_check -N -c -qb "$EPISODE_NAME_VIDEO_HQ"`
+					tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_HQ"`
 					ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
 					pid[$d]=$ttpid
 				else
@@ -656,7 +755,7 @@ function do_downloading() {
 				fi
 
 				EPISODE_Cur=$( printf "%.4d" $d ) # Video is 4 0s long
-				EPISODE_NAME_VIDEO_LQ="${EPISODE_NAME_VIDEO_LQ_URL}sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264b_640x368_256.mp4"
+				EPISODE_NAME_VIDEO_LQ="${EPISODE_NAME_VIDEO_LQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264b_640x368_256.mp4"
 				echo $EPISODE_NAME_VIDEO_LQ
 
 				check_url "$EPISODE_NAME_VIDEO_LQ"
@@ -665,7 +764,7 @@ function do_downloading() {
 						echo "Downloading HQ video episode ${EPISODE_Cur}..."
 					fi
 
-					tpid=`wget $skip_wget_digital_check -N -c -qb "$EPISODE_NAME_VIDEO_LQ"`
+					tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_LQ"`
 					ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
 					pid[$d]=$ttpid
 				else
@@ -720,28 +819,89 @@ function do_downloading() {
 
 }
 
+function spinner() {
+    local pid=$1
+    local delay=0.4
+    local spinstr='|/-\'
+    
+    while [ $(ps a | grep 21928 | grep -v grep | wc -l) != 0 ]; do
+        local temp=${spinstr#?}
+        printf "$2 [%c]  " "$spinstr"
+        local spinstr=$temp${spinstr%"$temp"}
+        
+        sleep $delay
+        printf "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b"
+    done
+    printf "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b"
+}
+
+spinner_step_tempspin=""
+spinner_step_spinstr='|/-\'
+function spinner_step() {
+    local delay=0.5
+    
+	spinner_step_tempspin=${spinner_step_spinstr#?}
+    printf "$1 [%c]  " "$spinner_step_spinstr"
+	spinner_step_spinstr=$spinner_step_tempspin${spinner_step_spinstr%"$spinner_step_tempspin"}
+	
+    sleep $delay
+    printf "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b"
+
+}
+
+#Simply wait on a process to finish based on its pid
+function wait_on_pid() {
+	while [ $(ps a | grep 21928 | grep -v grep | wc -l) ]; do
+        sleep .5
+    done
+
+}
+
+# Fill up the cache files from last downloaded +1 to latest.
+function fill_cache() {
+	
+	# Find the last epi number that was downloaded
+	last_local_cache_epi=$(do_find_last_local_episode_cache)
+	#echo "Cache: $last_local_cache_epi | Latest: $latest_episode"
+	let "last_local_cache_epi += 1" # Next one to download	
+	
+	if [ $last_local_cache_epi -lt $latest_episode ]; then
+		
+		# Change to the temp search txt directory
+		cd "$script_directory_path/$download_temp_txt_search_dir"
+		
+		# Run another instance of this script in the background so we can run a foreground spinner to indicate it's "working".
+		../$0 -ep $last_local_cache_epi:latest -eptxt -q -s_override -pd 20 & # Put it into the background so we can use the spinner. Need to capture PID and kill it if we kill this script.
+		# Capture running pid for killing if need be.
+		subsearch_pid=$!
+
+		if ! $quite_mode; then # Needed to allow me to download all the cache file without searching within them. Used in the RSS Feed creation.
+			spinner $subsearch_pid "Filling Cache: " # Run the spinner to show that the script is not stuck
+		else
+			wait_on_pid $subsearch_pid # Simply wait without output
+		fi
+
+		cd ..
+	fi
+}
+
 # Searching for text in episodes.
 function do_searching() {
 
 	# Download all text transcripts and search them.
 	if $search_txt_download ; then
 
-		# call uncompress/compress function for cache.
-		do_cache "uncompress"
-
 		# Download all the files to search
 		#I need to insert a way to narrow down what episodes need downloaded. Instead of rechecking every time. Takes to long that way. wget is set to only download if the server side is newer ( -N ). Still takes a while.
 		if ! $quite_mode ; then
 			echo "Downloading files"
 		fi
-		cd $download_temp_txt_search_dir/
-		(../$0 -all -eptxt -q -s_override -pd 20) & # Put it into the background so we can use the spinner. Need to capture PID and kill it if we kill this script.
-		subsearch_pid=$!
-		spinner $subsearch_pid # Run the spinner to show that the script is not stuck
-		cd ..
-
+		
+		# Fill the cache up for searching in
+		fill_cache
+		
 		# Search all the files and put results into a temp file
-		grep -w -l -s -i "$search_string" "$download_temp_txt_search_dir/"*.txt *.txt > .found
+		grep -w -l -s -i "$search_string" "$download_temp_txt_search_dir/*.txt" > .found
 
 		# Copy the files with the content we searched for into the special directory so it can be reviewed later
 		echo "Readying results"
@@ -759,7 +919,6 @@ function do_searching() {
 			first_file=$(ls "results_of_$search_string" | cut -f 1 -d " " | head -n 1)
 			grep --color=auto -w -n -i "$search_string" "results_of_$search_string/$first_file"
 
-
 			# Inform user where to find the results.
 			echo " "
 			echo "Your search results are in $(pwd)/results_of_$search_string"
@@ -767,18 +926,12 @@ function do_searching() {
 			echo " "
 		fi
 
-		# call uncompress/compress function for cache.
-		do_cache "compress"
-
 	fi
 
 	# Search existing text transcripts
 	if $search_txt_local ; then
 
-		# call uncompress/compress function for cache.
-		do_cache "uncompress"
-
-		grep -w -l -s -i "$search_string" "$download_temp_txt_search_dir/"*.txt *.txt > .found
+		grep -w -l -s -i "$search_string" "$download_temp_txt_search_dir/*.txt" > .found
 
 		# Copy the files with the content we searched for into the special directory so it can be reviewed later
 		echo "Readying results"
@@ -803,25 +956,325 @@ function do_searching() {
 			echo " "
 		fi
 
-		# call uncompress/compress function for cache.
-		do_cache "compress"
 	fi
 }
 
-function spinner() {
-    local pid=$1
-    local delay=0.4
-    local spinstr='|/-\'
-    while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
-        local temp=${spinstr#?}
-        printf " [%c]  " "$spinstr"
-        local spinstr=$temp${spinstr%"$temp"}
-        sleep $delay
-        printf "\b\b\b\b\b\b"
-    done
-    printf "    \b\b\b\b"
+# html_encode STRING -- encode STRING for HTML presentation
+# html_encode        -- encode STDIN  for HTML presentation
+#
+# converts '&' => &amp;  '>' => &gt;  '<' => &lt;
+function html_encode() {
+
+  ( [[ $# -gt 0 ]] && echo -n "$*" || cat ) | sed -e "s/\&/\&amp;/g ; s/[<]/\&lt;/g  ; s/[>]/\&gt;/g"
+
 }
 
+# Remove leading and trailing whitespaces
+function trim_str() {
+
+	echo "$1" | sed -e 's/^ *//' -e 's/ *$//'
+
+}
+
+# Convert URL from a GRC to CacheFly
+#Please send url before converting to HTML Entities.
+function convert_grc_url_to_cachefly() { # $1 = URL $2 = TYPE -> ahq,vhd,vhq,vlq
+
+	# Need to know if this is a MP3(HQ Audio) or Video URL
+		# Convert from http://media.GRC.com/sn/SN-457.mp3
+		# to
+		#twit.cachefly.net/audio/sn/sn0457/sn0457.mp3 -> ahq -> EPISODE_NAME_AUDIO_HQ
+		# For Video,
+		#twit.cachefly.net/video/sn/sn0457/sn0457_h264m_1280x720_1872.mp4 -> vhd -> EPISODE_NAME_VIDEO_HD
+		#twit.cachefly.net/video/sn/sn0435/sn0435_h264m_864x480_500.mp4 -> vhq -> EPISODE_NAME_VIDEO_HQ
+		#twit.cachefly.net/video/sn/sn0435/sn0435_h264b_640x368_256.mp4 -> vlq -> EPISODE_NAME_VIDEO_LQ
+		# For Text
+		#EPISODE_Cur=$( printf "%.3d" $d ) # Audio is three 0s long. Fix this after episode 999.
+		#EPISODE_NAME_AUDIO_TEXT="${EPISODE_NAME_AUDIO_TEXT_URL}/sn-${EPISODE_Cur}.txt"
+
+	# take number off the end of the url
+	passed_number=$(echo "$1" | cut -d "/" -f 5 | cut -d "-" -f2 | cut -d "." -f 1)
+
+	# Format it for 4 digits
+	#EPISODE_Cur=$( printf "%04d" ${passed_number#0} )
+	EPISODE_Cur=$( awk '{printf "%04d", $passed_number;}' )
+	# Format it for 3 digits
+	#EPISODE_text_Cur=$( printf "%03d" "${passed_number#0}" ) # Text takes 3 000s
+	EPISODE_text_Cur=$( awk '{printf "%03d", $passed_number;}' )
+
+	# Complete the URL
+	case "$2" in
+		ahq)
+			EPISODE_NAME_AUDIO_HQ="${EPISODE_NAME_AUDIO_HQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}.mp3"
+			echo "$EPISODE_NAME_AUDIO_HQ"
+			;;
+		vhd)
+			EPISODE_NAME_VIDEO_HD="${EPISODE_NAME_VIDEO_HD_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264m_1280x720_1872.mp4"
+			echo "$EPISODE_NAME_VIDEO_HD"
+			;;
+		vhq)
+			EPISODE_NAME_VIDEO_HQ="${EPISODE_NAME_VIDEO_HQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264m_864x480_500.mp4"
+			echo "$EPISODE_NAME_VIDEO_HQ"
+			;;
+		vlq)
+			EPISODE_NAME_VIDEO_LQ="${EPISODE_NAME_VIDEO_LQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264b_640x368_256.mp4"
+			echo "$EPISODE_NAME_VIDEO_LQ"
+			;;
+		txt)
+			EPISODE_NAME_AUDIO_TEXT="${EPISODE_NAME_AUDIO_TEXT_URL}/sn-${EPISODE_text_Cur}.txt"
+			echo "$EPISODE_NAME_AUDIO_TEXT"
+			;;
+	esac
+
+}
+
+# Create a RSS Feed file for websites and RSS News Readers
+function rss_header() {
+	### RSS HEADER
+		echo "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>
+	<rss version=\"2.0\">
+	<channel>
+		<title>$CHANNELFEEDTITLE</title>
+		<pubDate>$(date)</pubDate>
+		<ttl>10080</ttl>
+		<webMaster>$Dev_Coder_email</webMaster>
+		<link>$CHANNELFEEDLINK</link>
+		<description>$CHANNELFEEDDESC</description>
+		<image>
+			<url>$CHANNELIMAGE</url>
+			<title>$CHANNELFEEDTITLE</title>
+			<link>$CHANNELFEEDCREATIONLINK</link>
+		</image>
+	"
+}
+
+function rss_body() { # Pass args of 1=Title of Episode, 2=LINK to CacheFly or GRC, 3=Security Now Text, 4=Publication Date in SN Text, 5=Category. Eg: GRC/Audio or GRC/Video or GRC/Text
+#RSS BODY
+
+# Link tag should be CacheFly URL when ever we can, GRC if not. So far, I think only the Low Quality audio needs to be a GRC link.
+	echo "
+	<item>
+		<title>$1</title>
+		<link>$2</link>
+		<description>
+		$3
+		</description>
+		<pubDate>$4</pubDate>
+		<category>$5</category>
+	</item>
+
+"
+
+}
+
+function rss_footer() {
+### RSS FOOTER
+	echo "</channel></rss>"
+}
+
+# Helper function to grab show title
+function grab_item_title() {
+		gtemp=$(grep -i title: $1 | cut -f 3)
+		# Strip carriage returns
+		gtemp=$(strip_text_cr "$gtemp")
+		# Convert some chars to HTML entitys for XML in the file.
+		gtemp=$(html_encode "$gtemp")
+		# Trim white spaces
+		gtemp=$(trim_str "$gtemp")
+
+		echo "$gtemp"
+}
+
+# Helper function to grab show link
+function grab_item_link() {
+
+		# Grab the URL
+		gtemp=$(grep -i "SOURCE FILE:" $1 | cut -f 2)
+		# Strip carriage returns
+		gtemp=$(strip_text_cr "$gtemp")
+		# Convert to CacheFly URL
+		#gtemp=$(convert_grc_url_to_cachefly "$gtemp" "$2")
+		# Convert some chars to HTML entitys for XML in the file.
+		#gtemp=$(html_encode "$gtemp")
+		# Trim white spaces
+		gtemp=$(trim_str "$gtemp")
+
+		echo "$gtemp"
+}
+
+# Helper function to grab show DESCRIPTION
+function grab_item_description() {
+		gtemp=$(grep -i DESCRIPTION: $1 | cut -d ":" -f 2)
+		# Strip carriage returns
+		gtemp=$(strip_text_cr "$gtemp")
+		# Convert some chars to HTML entitys for XML in the file.
+		gtemp=$(html_encode "$gtemp")
+		# Trim white spaces
+		gtemp=$(trim_str "$gtemp")
+
+		echo "$gtemp"
+}
+
+# Helper function to grab show publication date
+function grab_item_pubdate() {
+		gtemp=$(grep -i date: $1 | cut -f 3)
+		# Strip carriage returns
+		gtemp=$(strip_text_cr "$gtemp")
+
+		echo "$gtemp"
+}
+
+# Compile all the pieces together here for creating a RSS Feed file.
+function do_rss_feed() {
+
+	# We need to strip CR code from windows formated text files.
+	# Checking for TR and sed command, exit if we can not find it. Redo code for alternatives later?
+	check_program_exists_arr[0]="tr"
+	check_program_exists_arr[1]="sed"
+	check_program_exists_multi check_program_exists_arr[@]
+
+	# Exist?
+	if [[ ${check_program_exists_arr[${#check_program_exists_arr[*]}-1]} == "" ]] ; then
+		# Does not exist, exit script
+		echo " "
+		echo "RSS Feed script canceled: needs the tr and sed commands to strip CR's from windows formated text files and do some conversions for XML.."
+		echo " "
+		exit
+	fi
+
+	# We need to first download ALL the Security Now text files to find all the show TITLES,DATES,DESCRIPTIONS,CONTENT,etc
+	# From the files, we can create a RSS Feed file.
+	# Remember to swap out the GRC urls for CacheFly. If this provider changes, comment out the function and it will work with GRC's URLs(if hosted there), Steve Gibson told me to not use them !!.
+
+	# This will setup all the text data we need to parse into a RSS feed file.
+	fill_cache					# Get the cache downloaded!
+
+	# Create the header
+	rss_header_txt=$(rss_header)
+
+	# Create the ITEMs in the Feed.
+	# Loop from 001 to -latest show number
+	for show_num in $(eval echo "$download_temp_txt_search_dir/sn-{001..$latest_episode}.txt"); # This was starting at number 9 of the 1-### episodes. Weird.
+	#for show_num in {001..$latest_episode};
+	do
+		#echo "Numbers: $show_num";
+		
+		if [ -f $show_num ]; then
+		
+			# Show that we are processing the data
+			spinner_step "Cunching Epi: $show_num "
+		
+			# Show Epi number that is being worked on
+			#echo "\rEpi: $show_num"
+			#printf "\r%-${COLUMNS}s" "Epi: $show_num"
+			#echo -ne "\033[2K Epi: $show_num"
+
+			# Which items are we getting ? Audio, Video, Text, All ?
+			# Audio HQ
+			if $create_rss_audio || $create_rss_feeds; then
+
+				# Pull Audio information
+				rss_item_title="HQ Audio: "$(grab_item_title "$show_num")
+				# Swap link for CacheFly
+				rss_item_link=$(grab_item_link "$show_num" "ahq")
+				rss_item_description=$(grab_item_description "$show_num")
+				rss_item_date=$(grab_item_pubdate "$show_num")
+				rss_item_category="GRC/Audio"
+
+				# Loop around this one to create the needed RSS items.
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_date" "$rss_item_category" "$rss_item_description")
+			fi
+			# Video HD
+			if $create_rss_video || $create_rss_feeds; then
+
+				# Pull HD Video information
+				rss_item_title="HD Video: "$(grab_item_title "$show_num")
+				# Swap link for CacheFly
+				rss_item_link=$(grab_item_link "$show_num" "vhd")
+				rss_item_description=$(grab_item_description "$show_num")
+				rss_item_date=$(grab_item_pubdate "$show_num")
+				rss_item_category="GRC/Video"
+
+				# Loop around this one to create the needed RSS items.
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_date" "$rss_item_category" "$rss_item_description")
+
+			# Video HQ
+				# Pull HD Video information
+				rss_item_title="HQ Video: "$(grab_item_title "$show_num")
+				# Swap link for CacheFly
+				rss_item_link=$(grab_item_link "$show_num" "vhq")
+				rss_item_description=$(grab_item_description "$show_num")
+				rss_item_date=$(grab_item_pubdate "$show_num")
+				rss_item_category="GRC/Video"
+
+				# Loop around this one to create the needed RSS items.
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_date" "$rss_item_category" "$rss_item_description")
+
+			# Video LQ
+				# Pull HD Video information
+				rss_item_title="LQ Video: "$(grab_item_title "$show_num")
+				# Swap link for CacheFly
+				rss_item_link=$(grab_item_link "$show_num" "vlq")
+				rss_item_description=$(grab_item_description "$show_num")
+				rss_item_date=$(grab_item_pubdate "$show_num")
+				rss_item_category="GRC/Video"
+
+				# Loop around this one to create the needed RSS items.
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_date" "$rss_item_category" "$rss_item_description")
+			fi
+			# Text -> Transcriptions and ?Show Notes?(PDF to TEXT convertor needed. In future ?)
+			if $create_rss_text || $create_rss_feeds; then
+
+				# Pull Text information
+				rss_item_title="Transcription: "$(grab_item_title "$show_num")
+				rss_item_link=$(grab_item_link "$show_num" "txt")
+					
+					# Grab all the text or just to the limit rss_feed_text_limit
+					if [ "$rss_feed_text_limit" != "" ]; then
+						rss_item_description=$(head -n $rss_feed_text_limit "$show_num")
+					else
+						rss_item_description=$(cat "$show_num")
+					fi
+					# Strip carriage returns
+					rss_item_description=$(strip_text_cr "$rss_item_description")
+					# Convert some chars to HTML entitys for XML in the file.
+					rss_item_description=$(html_encode "$rss_item_description")
+					# Trim white spaces
+					#rss_item_description="<![CDATA["$(trim_str "$rss_item_description")"]]>"
+					rss_item_description=$(trim_str "$rss_item_description")
+					# Change New Lines into <br/>
+					rss_item_description=$(echo "$rss_item_description" | sed 's=$=<br/>=')
+					
+				rss_item_date=$(grab_item_pubdate "$show_num")
+				rss_item_category="GRC/Text"
+
+				# Loop around this one to create the needed RSS items.
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_date" "$rss_item_category" "$rss_item_description")
+			fi
+
+		#else
+		#	echo "Skipping Show: $show_num"
+		fi
+	done
+	# End Loop
+
+	# Create the footer
+	rss_footer_txt="$(rss_footer)"
+
+	# Combine it all and echo it out for capture
+	rss_feed_txt="$rss_header_txt \n $rss_body_txt \n $rss_footer_txt"
+
+	# Echo the entire RSS Feed text into a file
+	if [ "$rss_filename" != "" ]; then
+		echo -e "$rss_feed_txt" > "$rss_filename"
+	else
+		echo -e "$rss_feed_txt" > security_now.rss
+	fi
+
+}
+
+# Lets Start
+clear
 
 # Check arguments
 if [ $# -eq 0 ]; then
@@ -935,13 +1388,16 @@ until [ -z "$1" ]; do
 		#echo "ahq: $download_audio_hq, alq: $download_audio_lq, vhd: $download_video_hd, vhq: $download_video_hq, vlq: $download_video_lq"
 
 		if [[ $download_audio_hq || $download_audio_lq ]]; then
-			chk_temp=$(chk_disk_space $DISK_SPACE_MIN_FOR_ONE_AUDIO)
+			chk_disk_space $DISK_SPACE_MIN_FOR_ONE_AUDIO
+			chk_temp=$?
 		fi
 		if [[ $download_video_hq || $download_video_lq ]]; then
-			chk_temp=$(chk_disk_space $DISK_SPACE_MIN_FOR_ONE_VIDEO)
+			chk_disk_space $DISK_SPACE_MIN_FOR_ONE_VIDEO
+			chk_temp=$?
 		fi
 		if [[ $download_video_hd ]]; then
-			chk_temp=$(chk_disk_space $DISK_SPACE_MIN_FOR_ONE_HD_VIDEO)
+			chk_disk_space $DISK_SPACE_MIN_FOR_ONE_HD_VIDEO
+			chk_temp=$?
 		fi
 
 		if $chk_temp; then
@@ -966,11 +1422,12 @@ until [ -z "$1" ]; do
 			fi
 		fi
 
-		chk_temp=$(chk_disk_space $DISK_SPACE_MIN_FOR_ALL_VIDEO)
+		chk_disk_space $DISK_SPACE_MIN_FOR_ALL_VIDEO
+		chk_temp=$?
 		if [ $download_audio_hq ] || [ $download_audio_lq ]; then
-			if [ $download_audio_hq ] && $chk_temp; then
+			if [ $download_audio_hq ] && [ $chk_temp ]; then
 				download_all=true
-			elif [ $download_audio_lq ] && $chk_temp; then
+			elif [ $download_audio_lq ] && [ $chk_temp ]; then
 				download_all=true
 			else
 				echo "Not enough storage space for downloading."
@@ -980,13 +1437,14 @@ until [ -z "$1" ]; do
 			fi
 		fi
 
-		chk_temp=$(chk_disk_space $DISK_SPACE_MIN_FOR_ALL_PDF) # Doing the PDF since it is normally the largest.
+		chk_disk_space $DISK_SPACE_MIN_FOR_ALL_PDF # Doing the PDF since it is normally the largest.
+		chk_temp=$?
 		if [ $download_episode_text ] || [ $download_episode_pdf ] || [ $download_episode_html ]; then
-			if [ $download_episode_text ] && $chk_temp; then
+			if [ $download_episode_text ] && [ $chk_temp ]; then
 				download_all=true
-			elif [ $download_episode_pdf ] && $chk_temp; then
+			elif [ $download_episode_pdf ] && [ $chk_temp ]; then
 				download_all=true
-			elif [ $download_episode_html ] && $chk_temp; then
+			elif [ $download_episode_html ] && [ $chk_temp ]; then
 				download_all=true
 			else
 				echo "Not enough storage space for downloading."
@@ -1040,10 +1498,48 @@ until [ -z "$1" ]; do
 
 	fi
 
+	if [ "$1" == "-create-rss-audio" ]; then
+		create_rss_audio=true
+		create_rss_mode=true
+	fi
+	if [ "$1" == "-create-rss-video" ]; then
+		create_rss_video=true
+		create_rss_mode=true
+	fi
+	if [ "$1" == "-create-rss-text" ]; then
+		create_rss_text=true
+		create_rss_mode=true
+	fi
+	if [ "$1" == "-create-rss-feeds" ]; then
+		create_rss_feeds=true
+		create_rss_mode=true
+	fi
+	if [ "$1" == "-rss-filename" ]; then
+		shift
+		rss_filename="$1"
+	fi
+	if [ "$1" == "-rss-limit" ]; then
+		shift
+		rss_feed_text_limit="$1"
+	fi
+
 	shift
 done
 
+
+# Terminal variables
+if ! $quite_mode; then # This was needed since in Crontab, tput could not access the $TERM variable. Keep -q on the command in crontab.
+	ceol=$(tput el)
+fi
+
 #echo "ahq: $download_audio_hq, alq: $download_audio_lq, vhq: $download_video_hd, vhq: $download_video_hq, vlq: $download_video_lq, p: $pretend_mode, all: $download_all, latest: $download_latest, download_episode_number: $download_episode_number, Episode: start:$EPISODE to:$EPISODE_TO"
+
+# See and set flag if we are downloading a episode
+if ( $download_episode_number || $download_latest || $download_all ) && ( $download_audio_hq || $download_audio_lq || $download_video_hd || $download_video_hq || $download_video_lq || $download_episode_text || $download_episode_pdf || $download_episode_html || $download_episode_shownote ); then
+	do_episode_downloading=true
+else
+	do_episode_downloading=false
+fi
 
 # Find the latest so we can output the result
 do_find_latest_episode
@@ -1051,27 +1547,33 @@ do_find_latest_episode
 # Do again?
 # IF downloading all, then set the variables.
 if $download_all ; then
-	do_find_latest_episode
+	#do_find_latest_episode
 
 	EPISODE_TO=$latest_episode
 fi
 # IF downloading latest, then set the variables.
 if $download_latest ; then
-	do_find_latest_episode
+	#do_find_latest_episode
 
 	EPISODE=$latest_episode
 	EPISODE_TO=$latest_episode
 fi
+# IF downloading from a set episode number to LATEST , -ep 250:latest
+if [ "$EPISODE_TO" == "latest" ]; then
+	EPISODE_TO=$latest_episode
+fi
+
 #echo "ahq: $download_audio_hq, alq: $download_audio_lq, vhq: $download_video_hq, vlq: $download_video_lq, p: $pretend_mode, all: $download_all, latest: $download_latest, download_episode_number: $download_episode_number, Episode: start:$EPISODE to:$EPISODE_TO"
 
-if ! $search_txt_local && ! $search_txt_download ; then
-	if ! $download_audio_hq && ! $download_audio_lq && ! $download_video_hd && ! $download_video_hq && ! $download_video_lq && ! $download_episode_text && ! $download_episode_pdf && ! $download_episode_html && ! $download_episode_shownote; then
-		add_to_headers+=("What was I to download ? Please specify any/all of:")
-		add_to_headers+=("-ahq  -alq  -vhd  -vhq  -vlq  -eptxt  -eppdf  -ephtml -epnotes")
-		add_to_headers+=(" ")
+#if ! $search_txt_local && ! $search_txt_download ; then
+	#if ! $do_episode_downloading; then
+		#add_to_headers+=("What was I to download ? Please specify any/all of:")
+		#add_to_headers+=("-ep  -all  -latest")
+		#add_to_headers+=("-ahq  -alq  -vhd  -vhq  -vlq  -eptxt  -eppdf  -ephtml -epnotes")
+		#add_to_headers+=(" ")
 
-	fi
-fi
+	#fi
+#fi
 
 # Set episodes
 if $download_episode_number ; then
@@ -1080,30 +1582,49 @@ if $download_episode_number ; then
 	#	add_to_headers+=("Episode input: ${EPISODE} to ${EPISODE_TO}")
 	#fi
 
-elif ! $download_latest && ! $download_all && ! $download_episode_number && ! $search_txt_local && ! $search_txt_download ; then
+elif ! $download_latest && ! $download_all && ! $download_episode_number && $do_episode_downloading ; then
 
 	EPISODE_found=false
 
-	if $download_audio_hq || $download_audio_lq ; then
+	if $download_audio_lq ; then
 		count=`ls -1 *.mp3 2>/dev/null | wc -l`
 		if [ $count != 0 ]; then
 			# Got the episode number WITH zeros
-			EPISODE_capt=$(ls -1 *.mp3 | tail -n 1 | grep -io "^sn-..." | grep -o "...$")
+			EPISODE_capt=$(ls -1 *.mp3 | grep -io "^sn..." | grep -o "...$" | sort -n | tail -n 1)
 			# Strip the Zeros
 			#Needed because bash sees leading zeros as somthing else. "Numerical values starting with a zero (0) are interpreted as numbers in octal notation by the C language. As the only digits allowed in octal are {0..7}, an 8 or a 9 will cause the evaluation to fail."
-			declare -i epi_no_zero="$(echo $EPISODE_capt | sed 's/0*//')"
+			declare -i epi_no_zero="$(echo $EPISODE_capt | sed 's/-*//')"
 			# Do the math to increase the count AND Bring it back to the leading 0 format so that the filename is correct.
 			epi_no_zero=$epi_no_zero+1
-			EPISODE=$( printf "%.3d" $epi_no_zero ) # Does it to 3 zero format. Will need changed after episode # 999
+			EPISODE=$( printf "%.3d" $epi_no_zero ) # lq audio does it to 3 zero format. hq audio does it in 4, without the dash too. What will it be like after episode 999 ?
 
 			if ! $quite_mode ; then
-				add_to_headers+=("Audio episode input missing, guesstimating latest as: ${EPISODE}")
+				add_to_headers+=("Audio episode input missing, guesstimating latest as: ${epi_no_zero}")
 			fi
 			EPISODE_found=true
 		fi
 
 	fi
-	if [[ $download_video_hd || $download_video_hq || $download_video_lq ]]; then # What is the video extension ?
+	if $download_audio_hq ; then
+		count=`ls -1 *.mp3 2>/dev/null | wc -l`
+		if [ $count != 0 ]; then
+			# Got the episode number WITH zeros
+			EPISODE_capt=$(ls -1 *.mp3 | grep -io "^sn...." | grep -o "....$" | sort -n | tail -n 1)
+			# Strip the Zeros
+			#Needed because bash sees leading zeros as somthing else. "Numerical values starting with a zero (0) are interpreted as numbers in octal notation by the C language. As the only digits allowed in octal are {0..7}, an 8 or a 9 will cause the evaluation to fail."
+			declare -i epi_no_zero="$(echo $EPISODE_capt | sed 's/0*//')"
+			# Do the math to increase the count AND Bring it back to the leading 0 format so that the filename is correct.
+			epi_no_zero=$epi_no_zero+1
+			EPISODE=$( printf "%.4d" $epi_no_zero ) # lq audio does it to 3 zero format. hq audio does it in 4, without the dash too. What will it be like after episode 999 ?
+
+			if ! $quite_mode ; then
+				add_to_headers+=("Audio episode input missing, guesstimating latest as: ${epi_no_zero}")
+			fi
+			EPISODE_found=true
+		fi
+
+	fi
+	if ( $download_video_hd || $download_video_hq || $download_video_lq ); then # What is the video extension ?
 		count=`ls -1 *.mp4 2>/dev/null | wc -l`
 		if [ $count != 0 ]; then
 			EPISODE_capt=$(ls -1 *.mp4 | tail -n 1 | grep -io "^sn...." | grep -o "....$")
@@ -1116,7 +1637,7 @@ elif ! $download_latest && ! $download_all && ! $download_episode_number && ! $s
 			EPISODE=$( printf "%.4d" $epi_no_zero )
 
 			if ! $quite_mode ; then
-				add_to_headers+=("Video episode input missing, guesstimating latest as: ${EPISODE}")
+				add_to_headers+=("Video episode input missing, guesstimating latest as: ${epi_no_zero}")
 			fi
 			EPISODE_found=true
 		fi
@@ -1124,9 +1645,9 @@ elif ! $download_latest && ! $download_all && ! $download_episode_number && ! $s
 	fi
 	if ! $EPISODE_found ; then
 
-		echo "No Episodes found to start with. Can not find the next one to download."
-		echo "You in the correct directory ?"
-		echo " "
+		add_to_headers+=( "No Episodes found to start with. Can not find the next one to download.")
+		add_to_headers+=( "You in the correct directory ?")
+		add_to_headers+=( " ")
 		exit 1
 	fi
 
@@ -1140,18 +1661,27 @@ if ! $quite_mode ; then
 fi
 
 #echo "ahq: $download_audio_hq, alq: $download_audio_lq, vhq: $download_video_hq, vlq: $download_video_lq, p: $pretend_mode, all: $download_all, latest: $download_latest, download_episode_number: $download_episode_number"
-if ! $quite_mode && ! $search_txt_local && ! $search_txt_download ; then
-	echo "Downloading episodes $EPISODE to $EPISODE_TO"
+if ! $quite_mode && ! $search_txt_local && ! $search_txt_download && ! $create_rss_mode; then
+	echo "Downloading episodes $(echo $EPISODE | sed 's/0*//' | sed 's/-*//') to $(echo $EPISODE_TO | sed 's/0*//' | sed 's/-*//')"
 	echo " "
 fi
+
+
+# Nearly ready to do some work
+# Before doing so, uncompress the cache ONCE, instead of each call on; downloading, search, RSS feed
+# Faster this way
+		# call uncompress/compress function for cache.
+		do_cache "uncompress"
+
 
 # Before working,
 # Send Ping
 send_ping
 
 
-# Do some downloading!
-if ! ($search_txt_local || $search_txt_download) ; then
+# Do some episode downloading!
+#if ! ($search_txt_local || $search_txt_download) ; then
+if $do_episode_downloading ; then
 	if ! $pretend_mode ; then
 
 		do_downloading
@@ -1172,7 +1702,7 @@ if $search_txt_local || $search_txt_download ; then
 		do_searching
 
 	else
-	echo "Not Searching"
+		echo "Not Searching"
 		if ! $quite_mode ; then
 			echo "Pretend mode was enabled. Nothing Downloaded."
 		fi
@@ -1180,6 +1710,39 @@ if $search_txt_local || $search_txt_download ; then
 	fi
 fi
 
+# After all the searching, see if we are creating RSS Feeds file
+if $create_rss_feeds || $create_rss_audio || $create_rss_video || $create_rss_text ; then
+	if ! $pretend_mode ; then
+
+		echo "Creating RSS Feed file..."
+		
+		# Run another instance of this script in the background so we can run a foreground spinner to indicate it's "working".
+		#do_rss_feed & 	# Put it into the background so we can use the spinner. Need to capture PID and kill it if we kill this script.
+		do_rss_feed
+		
+		# Capture running pid for killing if need be.
+		#subsearch_pid=$! # capture of PID
+		#echo "Spinner PID: $subsearch_pid"
+		
+		#if ! $pretend_mode ; then # Needed to allow me to download all the cache file without searching within them. Used in the RSS Feed creation.
+		#	spinner $subsearch_pid # Run the spinner to show that the script is not stuck
+		#fi
+
+	else
+		echo "Not Creating RSS Feed file"
+		if ! $quite_mode ; then
+			echo "Pretend mode was enabled. Nothing Created."
+		fi
+
+	fi
+fi
+
+
+# call uncompress/compress function for cache.
+# This is too save space and preserve the text from rogue changes. Should remove all .txt files after compression.
+if ! $search_echo_override_mode ; then # This is for the cache download. We don't want to compress it after downloading it. See fill_cache function
+	do_cache "compress"
+fi
 
 do_script_shutdown 0
 
