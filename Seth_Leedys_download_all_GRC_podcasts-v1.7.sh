@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Created: 2012-05-25
-# Last Updated: 2016-04-11
+# Last Updated: 2016-04-02
 
 # This script will have updates at http://techblog.sethleedy.name/?p=24172 website
 #and for development @ https://github.com/sethleedy/GRC-SECURITY-NOW-PODCAST-DOWNLOAD-SCRIPT
@@ -110,7 +110,7 @@ function send_ping() {
 # Helper Function to remove annoying CR's from text files that are encoded in DOS format. When I grab the strings from Security Now text files, it picks them up too. This will remove them.
 function strip_text_cr() {
 
-		echo "$1" | tr -d "\r"
+	echo "$1" | tr -d "\r"
 
 }
 
@@ -1031,20 +1031,20 @@ function convert_grc_url_to_cachefly() { # $1 = URL $2 = TYPE -> ahq,vhd,vhq,vlq
 # Create a RSS Feed file for websites and RSS News Readers
 function rss_header() {
 	### RSS HEADER
-		echo "<!--?xml version=\"1.0\"?-->
+		echo "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>
 	<rss version=\"2.0\">
 	<channel>
-	<title>$CHANNELFEEDTITLE</title>
-	<pubDate>$(date)</pubDate>
-	<ttl>10080</ttl>
-	<webMaster>$Dev_Coder_email</webMaster>
-	<link>$CHANNELFEEDLINK</link>
-	<description>$CHANNELFEEDDESC</description>
-	<image>
-		<url>$CHANNELIMAGE</url>
 		<title>$CHANNELFEEDTITLE</title>
-		<link>$CHANNELFEEDCREATIONLINK</link>
-	</image>
+		<pubDate>$(date)</pubDate>
+		<ttl>10080</ttl>
+		<webMaster>$Dev_Coder_email</webMaster>
+		<link>$CHANNELFEEDLINK</link>
+		<description>$CHANNELFEEDDESC</description>
+		<image>
+			<url>$CHANNELIMAGE</url>
+			<title>$CHANNELFEEDTITLE</title>
+			<link>$CHANNELFEEDCREATIONLINK</link>
+		</image>
 	"
 }
 
@@ -1182,7 +1182,7 @@ function do_rss_feed() {
 				rss_item_category="GRC/Audio"
 
 				# Loop around this one to create the needed RSS items.
-				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_date" "$rss_item_category" "$rss_item_description")
 			fi
 			# Video HD
 			if $create_rss_video || $create_rss_feeds; then
@@ -1196,7 +1196,7 @@ function do_rss_feed() {
 				rss_item_category="GRC/Video"
 
 				# Loop around this one to create the needed RSS items.
-				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_date" "$rss_item_category" "$rss_item_description")
 
 			# Video HQ
 				# Pull HD Video information
@@ -1208,7 +1208,7 @@ function do_rss_feed() {
 				rss_item_category="GRC/Video"
 
 				# Loop around this one to create the needed RSS items.
-				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_date" "$rss_item_category" "$rss_item_description")
 
 			# Video LQ
 				# Pull HD Video information
@@ -1220,7 +1220,7 @@ function do_rss_feed() {
 				rss_item_category="GRC/Video"
 
 				# Loop around this one to create the needed RSS items.
-				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_date" "$rss_item_category" "$rss_item_description")
 			fi
 			# Text -> Transcriptions and ?Show Notes?(PDF to TEXT convertor needed. In future ?)
 			if $create_rss_text || $create_rss_feeds; then
@@ -1240,7 +1240,8 @@ function do_rss_feed() {
 					# Convert some chars to HTML entitys for XML in the file.
 					rss_item_description=$(html_encode "$rss_item_description")
 					# Trim white spaces
-					rss_item_description="<![CDATA["$(trim_str "$rss_item_description")"]]>"
+					#rss_item_description="<![CDATA["$(trim_str "$rss_item_description")"]]>"
+					rss_item_description=$(trim_str "$rss_item_description")
 					# Change New Lines into <br/>
 					rss_item_description=$(echo "$rss_item_description" | sed 's=$=<br/>=')
 					
@@ -1248,7 +1249,7 @@ function do_rss_feed() {
 				rss_item_category="GRC/Text"
 
 				# Loop around this one to create the needed RSS items.
-				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_date" "$rss_item_category" "$rss_item_description")
 			fi
 
 		#else
@@ -1272,7 +1273,8 @@ function do_rss_feed() {
 
 }
 
-
+# Lets Start
+clear
 
 # Check arguments
 if [ $# -eq 0 ]; then
