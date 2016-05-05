@@ -26,8 +26,10 @@ if (strpos($user_agent_string,'%') !== false) {
 $result = $link->query($query) or die("Error in the consult.." . mysqli_error($link));
 
 //display information:
+echo "<ul>";
 while($row = mysqli_fetch_array($result)) {
-  echo "Agent: " . $row["user_agent_string"] . ", Count: " . $row["pingcount"] . " <br> ";
+  echo "<li>Agent: " . $row["user_agent_string"] . ", Count: " . $row["pingcount"] . " </li>";
 }
+echo "</ul>";
 
 ?>
