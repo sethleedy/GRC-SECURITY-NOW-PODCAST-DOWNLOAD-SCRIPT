@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Created: 2012-05-25
-# Last Updated: 2016-04-02
+# Last Updated: 2016-05-09
 
 # This script will have updates at http://techblog.sethleedy.name/?p=24172 website
 #and for development @ https://github.com/sethleedy/GRC-SECURITY-NOW-PODCAST-DOWNLOAD-SCRIPT
@@ -1400,7 +1400,7 @@ until [ -z "$1" ]; do
 			chk_temp=$?
 		fi
 
-		if $chk_temp; then
+		if [[ $chk_temp ]]; then
 			download_latest=true
 		else
 			#echo "Download_Latest set to FALSE"
