@@ -1,14 +1,16 @@
 #!/bin/bash
 
 # Created: 2012-05-25
-# Last Updated: 2016-05-09
+# Last Updated: 2016-07-01
 
 # This script will have updates at http://techblog.sethleedy.name/?p=24172 website
 #and for development @ https://github.com/sethleedy/GRC-SECURITY-NOW-PODCAST-DOWNLOAD-SCRIPT
 
 
 # Initialization.
-this_version="1.7"
+this_version=1.8
+do_gh_update=false
+gh_version=-1
 curr_directory_name="${PWD##*/}"
 script_directory_path="$(pwd)"
 find_latest_episode_url="http://www.grc.com/securitynow.htm"
@@ -25,9 +27,11 @@ EPISODE_NAME_AUDIO_TEXT_URL="http://www.grc.com/sn"
 EPISODE_NAME_AUDIO_PDF_URL="http://www.grc.com/sn"
 EPISODE_NAME_AUDIO_HTML_URL="http://www.grc.com/sn"
 EPISODE_NAME_AUDIO_SHOWNOTES_URL="http://www.grc.com/sn"
-EPISODE_NAME_VIDEO_HD_URL="http://twit.cachefly.net/video/sn"
+EPISODE_NAME_VIDEO_HD_URL="http://cdn.twit.tv/video/sn"
+#EPISODE_NAME_VIDEO_HD_URL="http://twit.cachefly.net/video/sn"
 #twit.cachefly.net/video/sn/sn0457/sn0457_h264m_1280x720_1872.mp4
-EPISODE_NAME_VIDEO_HQ_URL="http://twit.cachefly.net/video/sn"
+EPISODE_NAME_VIDEO_HQ_URL="http://cdn.twit.tv/video/sn"
+#EPISODE_NAME_VIDEO_HQ_URL="http://twit.cachefly.net/video/sn"
 #twit.cachefly.net/video/sn/sn0435/sn0435_h264m_864x480_500.mp4
 EPISODE_NAME_VIDEO_LQ_URL="http://twit.cachefly.net/video/sn"
 #twit.cachefly.net/video/sn/sn0435/sn0435_h264b_640x368_256.mp4
@@ -107,6 +111,34 @@ function send_ping() {
 
 }
 
+# Check for script updates from GitHub. Download if -u is passed
+function check_and_update_script() {
+	
+	# First compare versions
+	# Get latest version listed on GitHub
+	check_url "https://raw.githubusercontent.com/sethleedy/GRC-SECURITY-NOW-PODCAST-DOWNLOAD-SCRIPT/master/GRC-Downloader.sh"
+	if [ $? -eq 0 ]; then
+		wget -U "$wget_agent_name" -q -O .update_check.txt "https://raw.githubusercontent.com/sethleedy/GRC-SECURITY-NOW-PODCAST-DOWNLOAD-SCRIPT/master/GRC-Downloader.sh"
+		if [ $? -eq 0 ]; then
+			gh_version=$(grep -i "this_version" .update_check.txt | head -n 1 | cut -d \" -f 2)
+			
+			# Is this script out of date ? Do we want to update it ?
+			# http://stackoverflow.com/questions/8654051/how-to-compare-two-floating-point-numbers-in-a-bash-script
+			if (( $(echo "$this_version < $gh_version" | bc -l) )) && $do_gh_update ; then
+				cp -f .update_check.txt $0
+				echo "Updated Script to $gh_version, by -u command"
+			#else
+				#echo "$gh_version" # Echo out the version as a return of the function.
+			fi
+		else
+			echo "Failed to download the update version file."
+		fi
+	else
+		echo "-"
+	fi	
+	
+}
+
 # Helper Function to remove annoying CR's from text files that are encoded in DOS format. When I grab the strings from Security Now text files, it picks them up too. This will remove them.
 function strip_text_cr() {
 
@@ -119,6 +151,7 @@ function do_script_shutdown() {
 
 	rm -f securitynow.htm
 	rm -f wget-log*
+	rm -f .update_check.txt
 
 	exit $1
 }
@@ -163,10 +196,10 @@ function check_url() {
 			echo "==> -skip-digital-cert-check automatically ENABLED"
 			skip_wget_digital_check=" --no-check-certificate "
 		else
-			echo " "
-			echo "Check_URL() Error: $returncode"
-			echo "URL: $1"
-			echo "You may have to turn on -skip-digital-cert-check"
+			#echo " "
+			#echo "Check_URL() Error: $returncode"
+			#echo "URL: $1"
+			#echo "You may have to turn on -skip-digital-cert-check"
 			return 1
 		fi
 	else
@@ -261,6 +294,7 @@ function output_help() {
 	echo "			(except the webpage needed to find the latest episodes)"
 	echo "-q		Quite mode. Minimal on search and nothing but errors on episode downloads will be outputted to the screen."
 	echo "-pd		Specify how many parallel downloads when downloading more than one. Eg: -pd 2"
+	echo "-u		Auto update the script from GitHub. Run this command alone, as it will not remember the other arguments and restart."
 	echo "-skip-digital-cert-check"
 	echo "		Sometimes, if running through a proxy, wget will refuse to download from GRC. Try this to skip the digital certificate safety check."
 	echo "-h		This help output."
@@ -272,6 +306,9 @@ function output_help() {
 
 function do_headers() {
 
+	# Convert the passed array into something usable
+	declare -a pass_arr=("${!1}") # Crazy syntax here !
+
 	# Output title.
 	echo " "
 	echo "Seth Leedy's GRC Security Now Downloader v$this_version"
@@ -281,6 +318,13 @@ function do_headers() {
 	echo "# Latest Episode: $latest_episode $latest_episode_name"
 	echo "##########################################################"
 	echo " "
+
+	echo "Latest Episode is: $latest_episode"
+	echo "Latest Episode name is: $latest_episode_name"
+	echo " "
+	for e in "${pass_arr[@]}" ; do
+		echo "$e"
+	done
 
 }
 
@@ -315,7 +359,7 @@ function do_cache() {
 			'gzip')
 				
 				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
-					cd $download_temp_txt_search_dir
+					cd "$download_temp_txt_search_dir"
 					skip_cd=false
 				else
 					skip_cd=true
@@ -339,7 +383,7 @@ function do_cache() {
 				;;
 			'zip')
 				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
-					cd $download_temp_txt_search_dir
+					cd "$download_temp_txt_search_dir"
 					skip_cd=false
 				else
 					skip_cd=true
@@ -364,7 +408,7 @@ function do_cache() {
 				;;
 			'bzip2')
 				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
-					cd $download_temp_txt_search_dir
+					cd "$download_temp_txt_search_dir"
 					skip_cd=false
 				else
 					skip_cd=true
@@ -390,7 +434,7 @@ function do_cache() {
 				;;
 			'7z')
 				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
-					cd $download_temp_txt_search_dir
+					cd "$download_temp_txt_search_dir"
 					skip_cd=false
 				else
 					skip_cd=true
@@ -688,9 +732,14 @@ function do_downloading() {
 
 				EPISODE_Cur=$( printf "%.4d" $d ) # Video is 4 0s long
 				EPISODE_NAME_VIDEO_HD="${EPISODE_NAME_VIDEO_HD_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264m_1280x720_1872.mp4"
-				#echo $EPISODE_NAME_VIDEO_HD
+				EPISODE_NAME_VIDEO_HD_b="${EPISODE_NAME_VIDEO_HD_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264b_1280x720_1872.mp4"
+				#echo $EPISODE_NAME_VIDEO_HQ
 
 				check_url "$EPISODE_NAME_VIDEO_HD"
+				if [ $? -ne 0 ]; then
+					check_url "$EPISODE_NAME_VIDEO_HD_b"
+					EPISODE_NAME_VIDEO_HD="$EPISODE_NAME_VIDEO_HD_b"
+				fi
 				if [ $? -eq 0 ]; then
 					if ! $quite_mode ; then
 						echo "Downloading HD video episode ${EPISODE_Cur}..."
@@ -722,9 +771,14 @@ function do_downloading() {
 
 				EPISODE_Cur=$( printf "%.4d" $d ) # Video is 4 0s long
 				EPISODE_NAME_VIDEO_HQ="${EPISODE_NAME_VIDEO_HQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264m_864x480_500.mp4"
+				EPISODE_NAME_VIDEO_HQ_b="${EPISODE_NAME_VIDEO_HQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264b_864x480_500.mp4"
 				#echo $EPISODE_NAME_VIDEO_HQ
 
 				check_url "$EPISODE_NAME_VIDEO_HQ"
+				if [ $? -ne 0 ]; then
+					check_url "$EPISODE_NAME_VIDEO_HQ_b"
+					EPISODE_NAME_VIDEO_HQ="$EPISODE_NAME_VIDEO_HQ_b"
+				fi
 				if [ $? -eq 0 ]; then
 					if ! $quite_mode ; then
 						echo "Downloading HQ video episode ${EPISODE_Cur}..."
@@ -756,12 +810,17 @@ function do_downloading() {
 
 				EPISODE_Cur=$( printf "%.4d" $d ) # Video is 4 0s long
 				EPISODE_NAME_VIDEO_LQ="${EPISODE_NAME_VIDEO_LQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264b_640x368_256.mp4"
-				echo $EPISODE_NAME_VIDEO_LQ
+				EPISODE_NAME_VIDEO_LQ_m="${EPISODE_NAME_VIDEO_LQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264m_640x368_256.mp4"
+				#echo $EPISODE_NAME_VIDEO_LQ
 
 				check_url "$EPISODE_NAME_VIDEO_LQ"
+				if [ $? -ne 0 ]; then
+					check_url "EPISODE_NAME_VIDEO_LQ_m"
+					EPISODE_NAME_VIDEO_LQ="$EPISODE_NAME_VIDEO_LQ_m"
+				fi
 				if [ $? -eq 0 ]; then
 					if ! $quite_mode ; then
-						echo "Downloading HQ video episode ${EPISODE_Cur}..."
+						echo "Downloading LQ video episode ${EPISODE_Cur}..."
 					fi
 
 					tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_LQ"`
@@ -1290,6 +1349,10 @@ until [ -z "$1" ]; do
 		output_help
 	fi
 
+	if [ "$1" == "-u" ]; then
+		do_gh_update=true
+		break
+	fi
 	if [ "$1" == "-ep" ]; then
 		download_episode_number=true
 
@@ -1655,8 +1718,23 @@ elif ! $download_latest && ! $download_all && ! $download_episode_number && $do_
 
 fi
 
+# Slight delay in startup due to downloading of files. Show something to indicate it is working
+spinner_step
+
+# Check to see if we are updating the script. Grab the new version from GitHub and display it if newer.
+check_and_update_script
+# http://stackoverflow.com/questions/14222250/floating-point-arithmetic-in-unix-shell-script
+if (( $(echo "$this_version < $gh_version" | bc -l) )) ; then
+	add_to_headers+="Script update available, version: $gh_version"
+	add_to_headers+=" "
+fi
+
+# Slight delay in startup due to downloading of files. Show something to indicate it is working
+spinner_step
+
 # Show some details if quite mode is off
 if ! $quite_mode ; then
+	clear
 	do_headers add_to_headers[@]
 fi
 
@@ -1668,7 +1746,7 @@ fi
 
 
 # Nearly ready to do some work
-# Before doing so, uncompress the cache ONCE, instead of each call on; downloading, search, RSS feed
+# Before doing so, uncompress the cache ONCE, instead of on each call; downloading, search, RSS feed
 # Faster this way
 		# call uncompress/compress function for cache.
 		do_cache "uncompress"
