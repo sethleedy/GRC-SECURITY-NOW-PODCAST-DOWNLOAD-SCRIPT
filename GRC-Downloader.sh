@@ -125,8 +125,11 @@ function check_and_update_script() {
 			# Is this script out of date ? Do we want to update it ?
 			# http://stackoverflow.com/questions/8654051/how-to-compare-two-floating-point-numbers-in-a-bash-script
 			if (( $(echo "$this_version < $gh_version" | bc -l) )) && $do_gh_update ; then
-				cp -f .update_check.txt $0
+				# Backup the current script just in case
+				cp -f "$0" "$0.bak"
+				cp -f .update_check.txt "$0"
 				echo "Updated Script to $gh_version, by -u command"
+				echo "Old script is now: $0.bak"
 			#else
 				#echo "$gh_version" # Echo out the version as a return of the function.
 			fi
