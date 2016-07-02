@@ -1,4 +1,4 @@
-Seth Leedy's GRC Security Now Downloader v1.7
+Seth Leedy's GRC Security Now Downloader v1.8
  
 Options are as follows:
 -ep		Specifies the episodes to download. You can specifiy 1 episode via just the number. Eg: -ep 25
@@ -38,6 +38,7 @@ Misc Options:
 			(except the webpage needed to find the latest episodes)
 -q		Quite mode. Minimal on search and nothing but errors on episode downloads will be outputted to the screen.
 -pd		Specify how many parallel downloads when downloading more than one. Eg: -pd 2
+-u		Auto update the script from GitHub. Run this command alone, as it will not remember the other arguments, nor restart.
 -skip-digital-cert-check
 		Sometimes, if running through a proxy, wget will refuse to download from GRC. Try this to skip the digital certificate safety check.
 -h		This help output.
