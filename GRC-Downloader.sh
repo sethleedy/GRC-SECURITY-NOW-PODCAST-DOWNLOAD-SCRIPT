@@ -297,7 +297,7 @@ function output_help() {
 	echo "			(except the webpage needed to find the latest episodes)"
 	echo "-q		Quite mode. Minimal on search and nothing but errors on episode downloads will be outputted to the screen."
 	echo "-pd		Specify how many parallel downloads when downloading more than one. Eg: -pd 2"
-	echo "-u		Auto update the script from GitHub. Run this command alone, as it will not remember the other arguments and restart."
+	echo "-u		Auto update the script from GitHub. Run this command alone, as it will not remember the other arguments, nor restart."
 	echo "-skip-digital-cert-check"
 	echo "		Sometimes, if running through a proxy, wget will refuse to download from GRC. Try this to skip the digital certificate safety check."
 	echo "-h		This help output."
