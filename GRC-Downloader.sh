@@ -18,7 +18,7 @@ find_latest_episode_url="http://www.grc.com/securitynow.htm"
 #EPISODE_NAME_AUDIO_HQ_URL="http://media.grc.com/sn"
 EPISODE_NAME_AUDIO_LQ_URL="http://media.grc.com/sn"
 # New URLs, source CacheFly. - http://twit.cachefly.net/audio/sn/sn0457/sn0457.mp3
-EPISODE_NAME_AUDIO_HQ_URL="http://twit.cachefly.net/audio/sn"
+EPISODE_NAME_AUDIO_HQ_URL="http://cdn.twit.tv/audio/sn"
 
 # Is there a low quality .MP3 on CacheFly ? If made, change the tacked on filename and the directory before it too. Follow the $EPISODE_NAME_AUDIO_HQ_URL for example.
 #EPISODE_NAME_AUDIO_LQ_URL="http://twit.cachefly.net/audio/sn"
@@ -33,7 +33,7 @@ EPISODE_NAME_VIDEO_HD_URL="http://cdn.twit.tv/video/sn"
 EPISODE_NAME_VIDEO_HQ_URL="http://cdn.twit.tv/video/sn"
 #EPISODE_NAME_VIDEO_HQ_URL="http://twit.cachefly.net/video/sn"
 #twit.cachefly.net/video/sn/sn0435/sn0435_h264m_864x480_500.mp4
-EPISODE_NAME_VIDEO_LQ_URL="http://twit.cachefly.net/video/sn"
+EPISODE_NAME_VIDEO_LQ_URL="http://cdn.twit.tv/video/sn"
 #twit.cachefly.net/video/sn/sn0435/sn0435_h264b_640x368_256.mp4
 skip_wget_digital_check=""
 wget_agent_name="GRCDownloader_v$this_version"
