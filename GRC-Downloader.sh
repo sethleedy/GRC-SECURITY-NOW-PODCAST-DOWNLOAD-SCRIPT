@@ -18,7 +18,7 @@ find_latest_episode_url="http://www.grc.com/securitynow.htm"
 #EPISODE_NAME_AUDIO_HQ_URL="http://media.grc.com/sn"
 EPISODE_NAME_AUDIO_LQ_URL="http://media.grc.com/sn"
 # New URLs, source CacheFly. - http://twit.cachefly.net/audio/sn/sn0457/sn0457.mp3
-EPISODE_NAME_AUDIO_HQ_URL="http://twit.cachefly.net/audio/sn"
+EPISODE_NAME_AUDIO_HQ_URL="http://cdn.twit.tv/audio/sn"
 
 # Is there a low quality .MP3 on CacheFly ? If made, change the tacked on filename and the directory before it too. Follow the $EPISODE_NAME_AUDIO_HQ_URL for example.
 #EPISODE_NAME_AUDIO_LQ_URL="http://twit.cachefly.net/audio/sn"
@@ -33,7 +33,7 @@ EPISODE_NAME_VIDEO_HD_URL="http://cdn.twit.tv/video/sn"
 EPISODE_NAME_VIDEO_HQ_URL="http://cdn.twit.tv/video/sn"
 #EPISODE_NAME_VIDEO_HQ_URL="http://twit.cachefly.net/video/sn"
 #twit.cachefly.net/video/sn/sn0435/sn0435_h264m_864x480_500.mp4
-EPISODE_NAME_VIDEO_LQ_URL="http://twit.cachefly.net/video/sn"
+EPISODE_NAME_VIDEO_LQ_URL="http://cdn.twit.tv/video/sn"
 #twit.cachefly.net/video/sn/sn0435/sn0435_h264b_640x368_256.mp4
 skip_wget_digital_check=""
 wget_agent_name="GRCDownloader_v$this_version"
@@ -352,15 +352,14 @@ function do_cache() {
 
 		check_program_exists_multi check_program_exists_arr[@]
 
-		if [[ ${check_program_exists_arr[${#check_program_exists_arr[*]}-1]} != "" ]] ; then
+		if [[ ${check_program_exists_arr[${#check_program_exists_arr[*]}+1]} != "" ]] ; then
 			if ! $quite_mode ; then
-				echo "Using compression program: ${check_program_exists_arr[${#check_program_exists_arr[*]}]}"
+				echo "Using compression program: ${check_program_exists_arr[${#check_program_exists_arr[*]}+1]}"
 			fi
 
 			# Use proper commands for which program is available
-			case "${check_program_exists_arr[${#check_program_exists_arr[*]}]}" in
+			case "${check_program_exists_arr[${#check_program_exists_arr[*]}+1]}" in
 			'gzip')
-				
 				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
 					cd "$download_temp_txt_search_dir"
 					skip_cd=false
