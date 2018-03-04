@@ -349,6 +349,7 @@ function do_cache() {
 		check_program_exists_arr[2]="zip"
 		check_program_exists_arr[3]="bzip2"
 		check_program_exists_arr[4]="7z"
+		check_program_exists_arr[5]="p7zip"
 
 		check_program_exists_multi check_program_exists_arr[@]
 
@@ -458,6 +459,39 @@ function do_cache() {
 					# Run compression in background so there is no delay on the terminal
 					# This may cause issues if the user reuses the script immediately. eg: deleting files at the same time as rechecking or downloading on the new script run.
 					cmd="7z a -mx=9 cache.7z *.txt"
+					$cmd >/dev/null 2>&1
+					cmd="rm -f *.txt"
+					$cmd >/dev/null 2>&1
+				fi
+				
+				if ! $skip_cd; then
+					cd ..
+				fi
+			   ;;
+			'p7zip')
+				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
+					cd "$download_temp_txt_search_dir"
+					skip_cd=false
+				else
+					skip_cd=true
+				fi
+				#echo "$curr_directory_name_temp"
+				#echo "$download_temp_txt_search_dir"
+				#exit
+				if [[ "$1" == "uncompress" ]]; then
+					if ! $quite_mode ; then
+						echo "Uncompressing cache"
+					fi
+					p7zip -d cache.7z >/dev/null 2>&1
+					rm -f cache.7z >/dev/null 2>&1
+				elif [[ "$1" == "compress" ]]; then
+					if ! $quite_mode ; then
+						echo "Compressing cache"
+					fi
+
+					# Run compression in background so there is no delay on the terminal
+					# This may cause issues if the user reuses the script immediately. eg: deleting files at the same time as rechecking or downloading on the new script run.
+					cmd="p7zip cache.7z *.txt"
 					$cmd >/dev/null 2>&1
 					cmd="rm -f *.txt"
 					$cmd >/dev/null 2>&1
