@@ -8,7 +8,7 @@
 
 
 # Initialization.
-this_version=1.8
+this_version=1.9
 do_gh_update=false
 gh_version=-1
 curr_directory_name="${PWD##*/}"
@@ -62,6 +62,7 @@ download_all=false
 pretend_mode=false
 par_downloads=false
 par_downloads_count=1
+new_download_home=""
 quite_mode=false
 declare -a pid
 declare -a add_to_headers
@@ -263,7 +264,7 @@ function output_help() {
 	echo "-latest		Download the latest episode. It will try to check for the latest whenever the script is run."
 	echo "		If this is flagged, it will put the latest episode as the file to download."
 	echo "-all		This will download all episodes from 1 to -latest"
-	echo "		Note: If no options are used to indicate what episode to download, the script will search the local directoy for the latest episode and download the next one automatically."
+	echo "		Note: If no options are used to indicate what episode to download, the script will search the local directory for the latest episode and download the next one automatically."
 	echo " "
 
 	echo "Combine the above option(s) with one or more in the next section:"
@@ -293,6 +294,7 @@ function output_help() {
 	echo "------------------------------------------------------------------------------------"
 	echo "Misc Options:"
 
+	echo "-d		Download the files into this specified directory. Eg: -d /home/user/Downloads/security_now"
 	echo "-p		Pretend mode. It will only spit out the headers and numbers. It will not download any files"
 	echo "			(except the webpage needed to find the latest episodes)"
 	echo "-q		Quite mode. Minimal on search and nothing but errors on episode downloads will be outputted to the screen."
@@ -612,7 +614,8 @@ function do_downloading() {
 					echo "Downloading HQ audio episode ${EPISODE_Cur}..."
 				fi
 
-				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_HQ"`
+				tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_HQ"`
+				#tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c "$EPISODE_NAME_AUDIO_HQ"` # Debugging
 				ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
 				pid[$d]=$ttpid
 
@@ -1553,6 +1556,11 @@ until [ -z "$1" ]; do
 			fi
 		fi
 
+	fi
+
+	if [ "$1" == "-d" ]; then
+		shift
+		new_download_home="-P $1"
 	fi
 	if [ "$1" == "-p" ]; then
 		pretend_mode=true
