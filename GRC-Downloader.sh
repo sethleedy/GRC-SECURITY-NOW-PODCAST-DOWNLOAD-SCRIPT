@@ -215,7 +215,7 @@ function check_url() {
 # Check disk space.
 function chk_disk_space() { # Pass a number in whole Kilo bytes.
 
-	DISK_SPACE=$(df -T "`pwd`" | grep -iv "Filesystem" | awk '{print $5}')
+	DISK_SPACE=$(df "`pwd`" | grep -iv "Filesystem" | awk '{print $4}')
 	#echo "DISK SPACE: $DISK_SPACE Needed: $1"
 	#exit
 
@@ -1654,14 +1654,12 @@ do_find_latest_episode
 # Do again?
 # IF downloading all, then set the variables.
 if $download_all ; then
-	#do_find_latest_episode
-
+	
 	EPISODE_TO=$latest_episode
 fi
 # IF downloading latest, then set the variables.
 if $download_latest ; then
-	#do_find_latest_episode
-
+	
 	EPISODE=$latest_episode
 	EPISODE_TO=$latest_episode
 fi
@@ -1689,7 +1687,8 @@ if $download_episode_number ; then
 	#	add_to_headers+=("Episode input: ${EPISODE} to ${EPISODE_TO}")
 	#fi
 
-elif ! $download_latest && ! $download_all && ! $download_episode_number && $do_episode_downloading ; then
+#elif ! $download_latest && ! $download_all && ! $download_episode_number && $do_episode_downloading ; then
+elif ! $download_latest && ! $download_episode_number && $do_episode_downloading ; then
 
 	EPISODE_found=false
 
