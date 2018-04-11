@@ -1,2 +1,8 @@
 
 \.tmp_search_txt/
+
+*.mp3
+
+*.rss
+
+\.update_check\.txt

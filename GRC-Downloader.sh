@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # Created: 2012-05-25
-# Last Updated: 2016-07-01
+# Last Updated: 2018-04-11
 
 # This script will have updates at http://techblog.sethleedy.name/?p=24172 website
 #and for development @ https://github.com/sethleedy/GRC-SECURITY-NOW-PODCAST-DOWNLOAD-SCRIPT
 
 
 # Initialization.
-this_version=1.9
+this_version=2.0
 do_gh_update=false
 gh_version=-1
 curr_directory_name="${PWD##*/}"
@@ -346,22 +346,25 @@ function do_cache() {
 
 		# If compressed cache exists, uncompress it.
 		# Check to see what program we can use to compress/uncompress the cache.
-		check_program_exists_arr[0]="foo"
+		check_program_exists_arr[0]="7z"
 		check_program_exists_arr[1]="gzip"
 		check_program_exists_arr[2]="zip"
 		check_program_exists_arr[3]="bzip2"
-		check_program_exists_arr[4]="7z"
-		check_program_exists_arr[5]="p7zip"
+		check_program_exists_arr[4]="p7zip" # Install p7zip-full. One package had p7zip, but not 7z. So it could only decompress.
 
 		check_program_exists_multi check_program_exists_arr[@]
 
-		if [[ ${check_program_exists_arr[${#check_program_exists_arr[*]}+1]} != "" ]] ; then
+		# Debug
+		#echo "${check_program_exists_arr[0]}"
+		#exit
+		if [[ ${check_program_exists_arr[0]} != "" ]] ; then
 			if ! $quite_mode ; then
-				echo "Using compression program: ${check_program_exists_arr[${#check_program_exists_arr[*]}+1]}"
+				echo " "
+				echo "Using compression program: ${check_program_exists_arr[0]}"
 			fi
 
 			# Use proper commands for which program is available
-			case "${check_program_exists_arr[${#check_program_exists_arr[*]}+1]}" in
+			case "${check_program_exists_arr[0]}" in
 			'gzip')
 				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
 					cd "$download_temp_txt_search_dir"
@@ -611,7 +614,7 @@ function do_downloading() {
 				EPISODE_NAME_AUDIO_HQ="${EPISODE_NAME_AUDIO_HQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}.mp3"
 
 				if ! $quite_mode ; then
-					echo "Downloading HQ audio episode ${EPISODE_Cur}..."
+					echo "${homeclr}Downloading HQ audio episode ${EPISODE_Cur}..."
 				fi
 
 				tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_HQ"`
@@ -637,7 +640,7 @@ function do_downloading() {
 				EPISODE_NAME_AUDIO_LQ="${EPISODE_NAME_AUDIO_LQ_URL}/sn-${EPISODE_Cur}-lq.mp3"
 
 				if ! $quite_mode ; then
-					echo "Downloading LQ audio episode ${EPISODE_Cur}..."
+					echo "${homeclr}Downloading LQ audio episode ${EPISODE_Cur}..."
 				fi
 
 				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_LQ"`
@@ -665,9 +668,9 @@ function do_downloading() {
 
 				if ! $quite_mode || ( $search_echo_override_mode && ! $quite_mode ) ; then
 					if $search_echo_override_mode ; then
-						echo -ne "\r${ceol}Checking or Downloading: text episode ${EPISODE_Cur}      "
+						echo -ne "${homeclr}Checking or Downloading: text episode ${EPISODE_Cur}"
 					else
-						echo -ne "\r${ceol}Downloading: text episode ${EPISODE_Cur}      "
+						echo -ne "${homeclr}Downloading: text episode ${EPISODE_Cur}"
 					fi
 
 				fi
@@ -695,7 +698,7 @@ function do_downloading() {
 				EPISODE_NAME_AUDIO_PDF="${EPISODE_NAME_AUDIO_PDF_URL}/sn-${EPISODE_Cur}.pdf"
 
 				if ! $quite_mode ; then
-					echo "Downloading episode text ${EPISODE_Cur}..."
+					echo "${homeclr}Downloading episode text ${EPISODE_Cur}..."
 				fi
 
 				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_PDF"`
@@ -721,7 +724,7 @@ function do_downloading() {
 				EPISODE_NAME_AUDIO_HTML="${EPISODE_NAME_AUDIO_HTML_URL}/sn-${EPISODE_Cur}.htm"
 
 				if ! $quite_mode ; then
-					echo "Downloading episode text ${EPISODE_Cur}..."
+					echo "${homeclr}Downloading episode text ${EPISODE_Cur}..."
 				fi
 
 				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_HTML"`
@@ -747,7 +750,7 @@ function do_downloading() {
 				EPISODE_NAME_AUDIO_SHOWNOTES="${EPISODE_NAME_AUDIO_SHOWNOTES_URL}/sn-${EPISODE_Cur}-notes.pdf"
 
 				if ! $quite_mode ; then
-					echo "Downloading episode show notes ${EPISODE_Cur}..."
+					echo "${homeclr}Downloading episode show notes ${EPISODE_Cur}..."
 				fi
 
 				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_SHOWNOTES"`
@@ -781,7 +784,7 @@ function do_downloading() {
 				fi
 				if [ $? -eq 0 ]; then
 					if ! $quite_mode ; then
-						echo "Downloading HD video episode ${EPISODE_Cur}..."
+						echo "${homeclr}Downloading HD video episode ${EPISODE_Cur}..."
 					fi
 
 					tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_HD"`
@@ -820,7 +823,7 @@ function do_downloading() {
 				fi
 				if [ $? -eq 0 ]; then
 					if ! $quite_mode ; then
-						echo "Downloading HQ video episode ${EPISODE_Cur}..."
+						echo "${homeclr}Downloading HQ video episode ${EPISODE_Cur}..."
 					fi
 
 					tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_HQ"`
@@ -859,7 +862,7 @@ function do_downloading() {
 				fi
 				if [ $? -eq 0 ]; then
 					if ! $quite_mode ; then
-						echo "Downloading LQ video episode ${EPISODE_Cur}..."
+						echo "${homeclr}Downloading LQ video episode ${EPISODE_Cur}..."
 					fi
 
 					tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_LQ"`
@@ -1070,7 +1073,8 @@ function html_encode() {
 # Remove leading and trailing whitespaces
 function trim_str() {
 
-	echo "$1" | sed -e 's/^ *//' -e 's/ *$//'
+	#echo "$1" | sed -e "s/[[:space:]]\+/ /g"
+	echo "$1" | sed 's/^[ \t]*//;s/[ \t]*$//'
 
 }
 
@@ -1172,7 +1176,7 @@ function rss_footer() {
 
 # Helper function to grab show title
 function grab_item_title() {
-		gtemp=$(grep -i title: $1 | cut -f 3)
+		gtemp=$(grep --text -i "title:" $1 | cut -d ":" -f 2)
 		# Strip carriage returns
 		gtemp=$(strip_text_cr "$gtemp")
 		# Convert some chars to HTML entitys for XML in the file.
@@ -1187,7 +1191,12 @@ function grab_item_title() {
 function grab_item_link() {
 
 		# Grab the URL
-		gtemp=$(grep -i "SOURCE FILE:" $1 | cut -f 2)
+		# URL format changed at some point. Newer files have "SOURCE:".
+		
+		gtemp=$(grep --text -i "SOURCE FILE:" $1 | cut -d ":" -f 2-3)
+		if [[ "$gtemp" == "" ]]; then
+			gtemp=$(grep --text -i "SOURCE:" $1 | cut -d ":" -f 2-3)
+		fi
 		# Strip carriage returns
 		gtemp=$(strip_text_cr "$gtemp")
 		# Convert to CacheFly URL
@@ -1202,7 +1211,7 @@ function grab_item_link() {
 
 # Helper function to grab show DESCRIPTION
 function grab_item_description() {
-		gtemp=$(grep -i DESCRIPTION: $1 | cut -d ":" -f 2)
+		gtemp=$(grep --text -i "DESCRIPTION:" $1 | cut -d ":" -f 2)
 		# Strip carriage returns
 		gtemp=$(strip_text_cr "$gtemp")
 		# Convert some chars to HTML entitys for XML in the file.
@@ -1215,9 +1224,11 @@ function grab_item_description() {
 
 # Helper function to grab show publication date
 function grab_item_pubdate() {
-		gtemp=$(grep -i date: $1 | cut -f 3)
+		gtemp=$(grep --text -i "date:" $1 | cut -d ":" -f 2)
 		# Strip carriage returns
 		gtemp=$(strip_text_cr "$gtemp")
+		# Trim white spaces
+		gtemp=$(trim_str "$gtemp")
 
 		echo "$gtemp"
 }
@@ -1245,7 +1256,7 @@ function do_rss_feed() {
 	# Remember to swap out the GRC urls for CacheFly. If this provider changes, comment out the function and it will work with GRC's URLs(if hosted there), Steve Gibson told me to not use them !!.
 
 	# This will setup all the text data we need to parse into a RSS feed file.
-	fill_cache					# Get the cache downloaded!
+	fill_cache	# Get the cache downloaded!
 
 	# Create the header
 	rss_header_txt=$(rss_header)
@@ -1280,7 +1291,7 @@ function do_rss_feed() {
 				rss_item_category="GRC/Audio"
 
 				# Loop around this one to create the needed RSS items.
-				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_date" "$rss_item_category" "$rss_item_description")
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
 			fi
 			# Video HD
 			if $create_rss_video || $create_rss_feeds; then
@@ -1294,7 +1305,7 @@ function do_rss_feed() {
 				rss_item_category="GRC/Video"
 
 				# Loop around this one to create the needed RSS items.
-				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_date" "$rss_item_category" "$rss_item_description")
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
 
 			# Video HQ
 				# Pull HD Video information
@@ -1306,7 +1317,7 @@ function do_rss_feed() {
 				rss_item_category="GRC/Video"
 
 				# Loop around this one to create the needed RSS items.
-				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_date" "$rss_item_category" "$rss_item_description")
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
 
 			# Video LQ
 				# Pull HD Video information
@@ -1318,7 +1329,7 @@ function do_rss_feed() {
 				rss_item_category="GRC/Video"
 
 				# Loop around this one to create the needed RSS items.
-				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_date" "$rss_item_category" "$rss_item_description")
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
 			fi
 			# Text -> Transcriptions and ?Show Notes?(PDF to TEXT convertor needed. In future ?)
 			if $create_rss_text || $create_rss_feeds; then
@@ -1347,7 +1358,7 @@ function do_rss_feed() {
 				rss_item_category="GRC/Text"
 
 				# Loop around this one to create the needed RSS items.
-				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_date" "$rss_item_category" "$rss_item_description")
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
 			fi
 
 		#else
@@ -1636,7 +1647,8 @@ done
 
 # Terminal variables
 if ! $quite_mode; then # This was needed since in Crontab, tput could not access the $TERM variable. Keep -q on the command in crontab.
-	ceol=$(tput el)
+ 	# This will go back UP a line, then clear the line. This is so the next echo will always be on the same line, instead of scrolling.
+	homeclr=$(tput cuu1;tput el)
 fi
 
 #echo "ahq: $download_audio_hq, alq: $download_audio_lq, vhq: $download_video_hd, vhq: $download_video_hq, vlq: $download_video_lq, p: $pretend_mode, all: $download_all, latest: $download_latest, download_episode_number: $download_episode_number, Episode: start:$EPISODE to:$EPISODE_TO"
