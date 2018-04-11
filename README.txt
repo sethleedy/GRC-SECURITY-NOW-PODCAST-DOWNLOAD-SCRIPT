@@ -1,4 +1,4 @@
-Seth Leedy's GRC Security Now Downloader v1.8
+Seth Leedy's GRC Security Now Downloader
  
 Options are as follows:
 -ep		Specifies the episodes to download. You can specifiy 1 episode via just the number. Eg: -ep 25
