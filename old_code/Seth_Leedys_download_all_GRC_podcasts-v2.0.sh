@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # Created: 2012-05-25
-# Last Updated: 2019-02-22
+# Last Updated: 2018-04-11
 
-# This script will have updates at https://github.com/sethleedy/GRC-SECURITY-NOW-PODCAST-DOWNLOAD-SCRIPT
-# Script homepage @ http://techblog.sethleedy.name/?p=24172
+# This script will have updates at http://techblog.sethleedy.name/?p=24172 website
+#and for development @ https://github.com/sethleedy/GRC-SECURITY-NOW-PODCAST-DOWNLOAD-SCRIPT
 
 
 # Initialization.
-this_version=2.1
+this_version=2.0
 do_gh_update=false
 gh_version=-1
 curr_directory_name="${PWD##*/}"
@@ -282,7 +282,7 @@ function output_help() {
 	echo "-create-rss-text	Will create a RSS feed file for RSS News Readers containing the Show's Notes and Transcriptions."
 	echo "-create-rss-feeds	Will create a RSS feed file for RSS News Readers containing all media files."
 	echo "-rss-filename		Sets the path and filename of the rss feed file. If excluded, defaults to 'security_now.rss' in the current directory."
-	echo "-rss-limit		Limits how much text is placed in the RSS feed file from each episode. Default none. Try -rss-limit 100"
+	echo "-rss-limit		Limits how much text is placed in the RSS feed file from each episode. Default none. Try 100."
 	echo "------------------------------------------------------------------------------------"
 	echo "Misc Options:"
 
@@ -306,21 +306,19 @@ function do_headers() {
 	# Convert the passed array into something usable
 	declare -a pass_arr=("${!1}") # Crazy syntax here !
 
-	# Make a nice looking border the same length as my variable + 2 for the edge.
-	var_size=$((21+${#latest_episode}+${#latest_episode_name}))
-	#echo $var_size
-
 	# Output title.
 	echo " "
 	echo "Seth Leedy's GRC Security Now Downloader v$this_version"
 	echo "GitHub URL: https://github.com/sethleedy/GRC-SECURITY-NOW-PODCAST-DOWNLOAD-SCRIPT"
 	echo "Home URL: http://techblog.sethleedy.name/?p=24172"
-	echo " "
-	str=$(printf "%${var_size}s"); echo ${str// /#}
-	echo "# Latest Episode: $latest_episode $latest_episode_name"" #"
-	str=$(printf "%${var_size}s"); echo ${str// /#}
+	echo "##########################################################"
+	echo "# Latest Episode: $latest_episode $latest_episode_name"
+	echo "##########################################################"
 	echo " "
 
+	echo "Latest Episode is: $latest_episode"
+	echo "Latest Episode name is: $latest_episode_name"
+	echo " "
 	for e in "${pass_arr[@]}" ; do
 		echo "$e"
 	done
@@ -575,6 +573,7 @@ function do_find_latest_episode() {
 # IF downloading files, this is the function that does it.
 function do_downloading() {
 
+
 	# Setup Loop here to download a range of episodes.
 	#loop from EPISODE to EPISODE_TO
 	slot_downloads=$(($par_downloads_count))
@@ -585,8 +584,7 @@ function do_downloading() {
 	while [[ $c -le $EPISODE_TO ]]; do
 
 		# Convert the interger to leading zeros for proper filename.
-		#EPISODE_Cur=$( printf "%.4d" $d )
-		EPISODE_Cur=$(padLeadingZeros 4 $(stripLeadingZeros "$d"))
+		EPISODE_Cur=$( printf "%.4d" $d )
 
 		if  $download_audio_hq ; then
 			for (( d=$c; d<$(($c+$slot_downloads)); d++ )); do
@@ -601,7 +599,7 @@ function do_downloading() {
 				fi
 
 				#EPISODE_Cur=$( printf "%03d\n" $(( 10#$d)) )
-				EPISODE_Cur=$(padLeadingZeros 3 $(stripLeadingZeros "$d"))
+				EPISODE_Cur=$( printf "%.4d" $d )
 				#EPISODE_NAME_AUDIO_HQ="${EPISODE_NAME_AUDIO_HQ_URL}/sn-${EPISODE_Cur}.mp3"
 				EPISODE_NAME_AUDIO_HQ="${EPISODE_NAME_AUDIO_HQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}.mp3"
 
@@ -624,11 +622,11 @@ function do_downloading() {
 				#echo "D: $d"
 				#echo "epi: $epi_no_zero"
 				if [ $d -gt $epi_no_zero ]; then
-					#echo "Over Number: $EPISODE_TO"
+					echo "Over Number: $EPISODE_TO"
 					break
 				fi
 
-				EPISODE_Cur=$(padLeadingZeros 3 $(stripLeadingZeros "$d")) # Audio is 3 0s long. Fix this after episode 999.
+				EPISODE_Cur=$( printf "%.3d" $d) # Audio is 3 0s long. Fix this after episode 999.
 				EPISODE_NAME_AUDIO_LQ="${EPISODE_NAME_AUDIO_LQ_URL}/sn-${EPISODE_Cur}-lq.mp3"
 
 				if ! $quite_mode ; then
@@ -655,7 +653,7 @@ function do_downloading() {
 					break
 				fi
 
-				EPISODE_Cur=$(padLeadingZeros 3 $(stripLeadingZeros "$d")) # Audio is three 0s long. Fix this after episode 999.
+				EPISODE_Cur=$( printf "%.3d" $d ) # Audio is three 0s long. Fix this after episode 999.
 				EPISODE_NAME_AUDIO_TEXT="${EPISODE_NAME_AUDIO_TEXT_URL}/sn-${EPISODE_Cur}.txt"
 
 				if ! $quite_mode || ( $search_echo_override_mode && ! $quite_mode ) ; then
@@ -686,7 +684,7 @@ function do_downloading() {
 					break
 				fi
 
-				EPISODE_Cur=$(padLeadingZeros 3 $(stripLeadingZeros "$d")) # Audio is 3 0s long. Fix this after episode 999.
+				EPISODE_Cur=$( printf "%.3d" $d ) # Audio is 3 0s long. Fix this after episode 999.
 				EPISODE_NAME_AUDIO_PDF="${EPISODE_NAME_AUDIO_PDF_URL}/sn-${EPISODE_Cur}.pdf"
 
 				if ! $quite_mode ; then
@@ -712,7 +710,7 @@ function do_downloading() {
 					break
 				fi
 
-				EPISODE_Cur=$(padLeadingZeros 3 $(stripLeadingZeros "$d")) # Audio is 3 0s long. Fix this after episode 999.
+				EPISODE_Cur=$( printf "%.3d" $d ) # Audio is 3 0s long. Fix this after episode 999.
 				EPISODE_NAME_AUDIO_HTML="${EPISODE_NAME_AUDIO_HTML_URL}/sn-${EPISODE_Cur}.htm"
 
 				if ! $quite_mode ; then
@@ -738,7 +736,7 @@ function do_downloading() {
 					break
 				fi
 
-				EPISODE_Cur=$(padLeadingZeros 3 $(stripLeadingZeros "$d")) # Audio is 3 0s long. Fix this after episode 999.
+				EPISODE_Cur=$( printf "%.3d" $d ) # Audio is 3 0s long. Fix this after episode 999.
 				EPISODE_NAME_AUDIO_SHOWNOTES="${EPISODE_NAME_AUDIO_SHOWNOTES_URL}/sn-${EPISODE_Cur}-notes.pdf"
 
 				if ! $quite_mode ; then
@@ -764,7 +762,7 @@ function do_downloading() {
 					break
 				fi
 
-				EPISODE_Cur=$(padLeadingZeros 4 $(stripLeadingZeros "$d")) # Video is 4 0s long
+				EPISODE_Cur=$( printf "%.4d" $d ) # Video is 4 0s long
 				EPISODE_NAME_VIDEO_HD="${EPISODE_NAME_VIDEO_HD_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264m_1280x720_1872.mp4"
 				EPISODE_NAME_VIDEO_HD_b="${EPISODE_NAME_VIDEO_HD_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264b_1280x720_1872.mp4"
 				#echo $EPISODE_NAME_VIDEO_HQ
@@ -803,7 +801,7 @@ function do_downloading() {
 					break
 				fi
 
-				EPISODE_Cur=$(padLeadingZeros 4 $(stripLeadingZeros "$d")) # Video is 4 0s long
+				EPISODE_Cur=$( printf "%.4d" $d ) # Video is 4 0s long
 				EPISODE_NAME_VIDEO_HQ="${EPISODE_NAME_VIDEO_HQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264m_864x480_500.mp4"
 				EPISODE_NAME_VIDEO_HQ_b="${EPISODE_NAME_VIDEO_HQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264b_864x480_500.mp4"
 				#echo $EPISODE_NAME_VIDEO_HQ
@@ -842,7 +840,7 @@ function do_downloading() {
 					break
 				fi
 
-				EPISODE_Cur=$(padLeadingZeros 4 $(stripLeadingZeros "$d")) # Video is 4 0s long
+				EPISODE_Cur=$( printf "%.4d" $d ) # Video is 4 0s long
 				EPISODE_NAME_VIDEO_LQ="${EPISODE_NAME_VIDEO_LQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264b_640x368_256.mp4"
 				EPISODE_NAME_VIDEO_LQ_m="${EPISODE_NAME_VIDEO_LQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}_h264m_640x368_256.mp4"
 				#echo $EPISODE_NAME_VIDEO_LQ
@@ -1070,35 +1068,10 @@ function trim_str() {
 
 }
 
-# Next two are helping me alter the filenames.
-# First remove any leading zeros. 
-# Then add whatever amount I want.
-stripLeadingZeros() {
-	#  $1 is the variable to strip
-
-	local passed_number
-
-	passed_number=$( [[ "$1" =~ ^0*(.*)$ ]] && echo "${BASH_REMATCH[1]}")
-
-	echo "$passed_number"
-
-}
-
-padLeadingZeros() {
-	#  $1 = How many
-	#  $2 is the variable to pad
-
-	local return_var
-
-	return_var=$( printf "%0$1d" $2 )
-
-	echo "$return_var"
-}
-
 # Convert URL from a GRC to CDN
 #Please send url before converting to HTML Entities.
-function convert_grc_url_to_cdn() { # $1 = URL $2 = TYPE -> ahq,vhd,vhq,vlq,txt
-#echo "$1 $2"
+function convert_grc_url_to_cdn() { # $1 = URL $2 = TYPE -> ahq,vhd,vhq,vlq
+echo "$1 $2"
 
 	# Need to know if this is a MP3(HQ Audio) or Video URL
 		# Convert from http://media.GRC.com/sn/SN-457.mp3
@@ -1106,16 +1079,13 @@ function convert_grc_url_to_cdn() { # $1 = URL $2 = TYPE -> ahq,vhd,vhq,vlq,txt
 
 	# take number off the end of the url
 	passed_number=$(echo "$1" | cut -d "/" -f 5 | cut -d "-" -f2 | cut -d "." -f 1)
-	# Format a plain number without leading zeros.
-	passed_number_whole=$(stripLeadingZeros "$passed_number")
 
 	# Format it for 4 digits
-	EPISODE_Cur=$(padLeadingZeros 4 "$passed_number_whole")
-	#echo "$EPISODE_Cur"
-
+	#EPISODE_Cur=$( printf "%04d" ${passed_number#0} )
+	EPISODE_Cur=$( awk '{printf "%04d", $passed_number;}' )
 	# Format it for 3 digits
-	EPISODE_text_Cur=$(padLeadingZeros 3 "$passed_number_whole")
-	#echo "$EPISODE_text_Cur"
+	#EPISODE_text_Cur=$( printf "%03d" "${passed_number#0}" ) # Text takes 3 000s
+	EPISODE_text_Cur=$( awk '{printf "%03d", $passed_number;}' )
 
 	# Complete the URL
 	case "$2" in
@@ -1189,7 +1159,6 @@ function rss_footer() {
 
 # Helper function to grab show title
 function grab_item_title() {
-	#echo "TITLE"
 		gtemp=$(grep --text -i "title:" $1 | cut -d ":" -f 2)
 		# Strip carriage returns
 		gtemp=$(strip_text_cr "$gtemp")
@@ -1206,27 +1175,22 @@ function grab_item_link() {
 
 		# Grab the URL
 		# URL format changed at some point. Newer files have "SOURCE:".
-		gtemp=$(grep --text "SOURCE FILE:" $1 | cut -d ":" -f 2-3)
+		echo "2-1"
+		gtemp=$(grep --text -i "SOURCE FILE:" $1 | cut -d ":" -f 2-3)
 		if [[ "$gtemp" == "" ]]; then
-			#echo "2-2"
-			gtemp=$(grep --text "SOURCE:" $1 | cut -d ":" -f 2-3)
-			#echo "$gtemp"
-			#exit
+			echo "2-2"
+			gtemp=$(grep --text -i "SOURCE:" $1 | cut -d ":" -f 2-3)
 		fi
-		
 		# Strip carriage returns
+		echo "2-3"
 		gtemp=$(strip_text_cr "$gtemp")
-		#echo "$gtemp"
-
 		# Convert to CDN URL
-		#echo "2-4"
+		echo "2-4"
 		gtemp=$(convert_grc_url_to_cdn "$gtemp" "$2")
-
 		# Convert some chars to HTML entitys for XML in the file.
-		gtemp=$(html_encode "$gtemp")
-
+		#gtemp=$(html_encode "$gtemp")
 		# Trim white spaces
-		#echo "2-5"
+		echo "2-5"
 		gtemp=$(trim_str "$gtemp")
 
 		echo "$gtemp"
@@ -1279,29 +1243,25 @@ function do_rss_feed() {
 	# Remember to swap out the GRC url'ss for CDN's. If this provider changes, comment out the function and it will work with GRCs URL's(if hosted there), Steve Gibson told me to not use them !!.
 
 	# This will setup all the text data we need to parse into a RSS feed file.
-	echo "Filling Cache"
 	fill_cache	# Get the cache downloaded!
 
 	# Create the header
 	rss_header_txt=$(rss_header)
-	write_to_rss_file "$rss_header_txt" true
-	
+
 	# Create the ITEMs in the Feed.
 	# Loop from 001 to -latest show number
-	#for show_num in $(eval echo "$download_temp_txt_search_dir/sn-{001..$latest_episode}.txt"); # This was starting at number 9 of the 1-### episodes. Weird.
-	EPISODE_padded=$(padLeadingZeros 3 "$EPISODE")
-	EPISODE_TO_padded=$(padLeadingZeros 3 "$EPISODE_TO")
-	for show_num in $(eval echo "$download_temp_txt_search_dir/sn-{$EPISODE_padded..$EPISODE_TO_padded}.txt"); # Loops around the selected or defaulted episode numbers
+	for show_num in $(eval echo "$download_temp_txt_search_dir/sn-{001..$latest_episode}.txt"); # This was starting at number 9 of the 1-### episodes. Weird.
+	#for show_num in {001..$latest_episode};
 	do
 		#echo "Numbers: $show_num";
 		
 		if [ -f $show_num ]; then
 		
 			# Show that we are processing the data
-			spinner_step "Crunching Epi: $show_num "
+			#spinner_step "Crunching Epi: $show_num "
 		
 			# Show Epi number that is being worked on
-			#echo "Epi: $show_num"
+			#echo "\rEpi: $show_num"
 			#printf "\r%-${COLUMNS}s" "Epi: $show_num"
 			#echo -ne "\033[2K Epi: $show_num"
 
@@ -1310,18 +1270,21 @@ function do_rss_feed() {
 			if $create_rss_audio || $create_rss_feeds; then
 
 				# Pull Audio information
+				echo "1"
 				rss_item_title="HQ Audio: "$(grab_item_title "$show_num")
 				# Swap link for CDN
+				echo "2"
 				rss_item_link=$(grab_item_link "$show_num" "ahq")
 
+				echo "3"
 				rss_item_description=$(grab_item_description "$show_num")
+				echo "4"
 				rss_item_date=$(grab_item_pubdate "$show_num")
+				echo "5"
 				rss_item_category="GRC/Audio"
 
 				# Loop around this one to create the needed RSS items.
-				rss_body_txt=$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
-				# Append write to file
-				write_to_rss_file "$rss_body_txt"
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
 			fi
 			# Video HD
 			if $create_rss_video || $create_rss_feeds; then
@@ -1335,9 +1298,7 @@ function do_rss_feed() {
 				rss_item_category="GRC/Video"
 
 				# Loop around this one to create the needed RSS items.
-				rss_body_txt=$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
-				# Append write to file
-				write_to_rss_file "$rss_body_txt"
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
 
 			# Video HQ
 				# Pull HD Video information
@@ -1349,9 +1310,7 @@ function do_rss_feed() {
 				rss_item_category="GRC/Video"
 
 				# Loop around this one to create the needed RSS items.
-				rss_body_txt=$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
-				# Append write to file
-				write_to_rss_file "$rss_body_txt"
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
 
 			# Video LQ
 				# Pull HD Video information
@@ -1363,9 +1322,7 @@ function do_rss_feed() {
 				rss_item_category="GRC/Video"
 
 				# Loop around this one to create the needed RSS items.
-				rss_body_txt=$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
-				# Append write to file
-				write_to_rss_file "$rss_body_txt"
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
 			fi
 			# Text -> Transcriptions and ?Show Notes?(PDF to TEXT convertor needed. In future ?)
 			if $create_rss_text || $create_rss_feeds; then
@@ -1373,8 +1330,6 @@ function do_rss_feed() {
 				# Pull Text information
 				rss_item_title="Transcription: "$(grab_item_title "$show_num")
 				rss_item_link=$(grab_item_link "$show_num" "txt")
-				#echo "1] $rss_item_title"
-				#echo "2] $rss_item_link"
 					
 					# Grab all the text or just to the limit rss_feed_text_limit
 					if [ "$rss_feed_text_limit" != "" ]; then
@@ -1395,50 +1350,30 @@ function do_rss_feed() {
 				rss_item_date=$(grab_item_pubdate "$show_num")
 				rss_item_category="GRC/Text"
 
-				## Maybe append to the file instead of using of the memory.
 				# Loop around this one to create the needed RSS items.
-				#echo "Adding to body"
-				rss_body_txt=$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
-				# Append write to file
-				write_to_rss_file "$rss_body_txt"
+				rss_body_txt="$rss_body_txt"$(rss_body "$rss_item_title" "$rss_item_link" "$rss_item_description" "$rss_item_date" "$rss_item_category")
 			fi
 
 		#else
 		#	echo "Skipping Show: $show_num"
 		fi
 	done
-	#echo "End Loop"
 	# End Loop
 
 	# Create the footer
 	rss_footer_txt="$(rss_footer)"
-	# Append write to file
-	write_to_rss_file "$rss_footer_txt"
 
 	# Combine it all and echo it out for capture
-	#rss_feed_txt="$rss_header_txt \n $rss_body_txt \n $rss_footer_txt"
+	rss_feed_txt="$rss_header_txt \n $rss_body_txt \n $rss_footer_txt"
 
-}
-
-function write_to_rss_file() {
-#  $1 is the data to write.
-#  $2 optional argument - clear file before write
-
-	if [ "$rss_filename" == "" ]; then
-		rss_filename="security_now.rss"
-	fi
-
-	# Clear the file if told so by $2
 	# Echo the entire RSS Feed text into a file
-	if [ "$2" != "" ]; then
-		#echo "Clearing"
-		echo "" > "$rss_filename"
+	if [ "$rss_filename" != "" ]; then
+		echo -e "$rss_feed_txt" > "$rss_filename"
+	else
+		echo -e "$rss_feed_txt" > security_now.rss
 	fi
 
-	echo -e "$1" >> "$rss_filename"
-
 }
-
 
 # Lets Start
 clear
@@ -1772,8 +1707,7 @@ elif ! $download_latest && ! $download_episode_number && $do_episode_downloading
 			declare -i epi_no_zero="$(echo $EPISODE_capt | sed 's/-*//')"
 			# Do the math to increase the count AND Bring it back to the leading 0 format so that the filename is correct.
 			epi_no_zero=$epi_no_zero+1
-			EPISODE=$(padLeadingZeros 3 $epi_no_zero) # lq audio does it to 3 zero format. hq audio does it in 4, without the dash too. What will it be like after episode 999 ?
-			#EPISODE=$( printf "%.3d" $epi_no_zero ) # lq audio does it to 3 zero format. hq audio does it in 4, without the dash too. What will it be like after episode 999 ?
+			EPISODE=$( printf "%.3d" $epi_no_zero ) # lq audio does it to 3 zero format. hq audio does it in 4, without the dash too. What will it be like after episode 999 ?
 
 			if ! $quite_mode ; then
 				add_to_headers+=("Audio episode input missing, guesstimating latest as: ${epi_no_zero}")
@@ -1792,8 +1726,7 @@ elif ! $download_latest && ! $download_episode_number && $do_episode_downloading
 			declare -i epi_no_zero="$(echo $EPISODE_capt | sed 's/0*//')"
 			# Do the math to increase the count AND Bring it back to the leading 0 format so that the filename is correct.
 			epi_no_zero=$epi_no_zero+1
-			EPISODE=$(padLeadingZeros 4 $epi_no_zero) # lq audio does it to 3 zero format. hq audio does it in 4, without the dash too. What will it be like after episode 999 ?
-			#EPISODE=$( printf "%.4d" $epi_no_zero ) # lq audio does it to 3 zero format. hq audio does it in 4, without the dash too. What will it be like after episode 999 ?
+			EPISODE=$( printf "%.4d" $epi_no_zero ) # lq audio does it to 3 zero format. hq audio does it in 4, without the dash too. What will it be like after episode 999 ?
 
 			if ! $quite_mode ; then
 				add_to_headers+=("Audio episode input missing, guesstimating latest as: ${epi_no_zero}")
@@ -1812,7 +1745,7 @@ elif ! $download_latest && ! $download_episode_number && $do_episode_downloading
 			# Do the math to increase the count AND Bring it back to the leading 0 format so that the filename is correct, using BASE#NUMBER.
 			#EPISODE=$( printf "%03d\n" $(( 10#$epi_no_zero + 1 )) )
 			epi_no_zero=$epi_no_zero+1
-			EPISODE=$(padLeadingZeros 4 $epi_no_zero)
+			EPISODE=$( printf "%.4d" $epi_no_zero )
 
 			if ! $quite_mode ; then
 				add_to_headers+=("Video episode input missing, guesstimating latest as: ${epi_no_zero}")
