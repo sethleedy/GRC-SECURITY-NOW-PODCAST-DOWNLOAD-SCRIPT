@@ -17,7 +17,7 @@ Combine the above option(s) with one or more in the next section:
 -eptxt		Download the text transcript of the episode
 -eppdf		Download the pdf transcript of the episode
 -ephtml		Download the html transcript of the episode
--epnotes	Download the show notes of the episode(Not all available)
+-epnotes	Download the show notes of the episode(Early shows had none)
 ------------------------------------------------------------------------------------
 Search Mode:
 -dandstxt	Download and Search, will download all text episodes and search insensitively for the text you enter here.
@@ -36,12 +36,12 @@ Misc Options:
 -d		Download the files into this specified directory. Eg: -d /home/user/Downloads/security_now
 -ff		File Format. Allows you to specify the order of the elements that make up the filename.
 			Choose from: <showname> <episodenumber> <episodename> <episodeyear> <date> <type> <raw>(same as the downloaded filename)
-			The default is: -ff <raw>
+			The default is: -ff "<raw>"
 			Presets:
 				Ordered:	-ff ordered
-					Which is: <number> <name> - <date>
+					Which is: "<number> <name> - <date>"
 				Kodi:		-ff kodi
-					Which is: <showname> S<episodeyear>E<episodenumber> 
+					Which is: "<showname> S<episodeyear>E<episodenumber>"
 -p		Pretend mode. It will only spit out the headers and numbers. It will not download any files
 			(except the webpage needed to find the latest episodes)
 -q		Quite mode. Minimal on search and nothing but errors on episode downloads will be outputted to the screen.

@@ -68,6 +68,8 @@ download_episode_pdf=false
 download_episode_html=false
 download_episode_shownote=false
 download_temp_txt_search_dir=".tmp_search_txt"
+do_file_format=false
+formatted_file_name=""
 search_txt_local=false
 search_txt_download=false
 search_string=""
@@ -268,7 +270,7 @@ function output_help() {
 	echo "-eptxt		Download the text transcript of the episode"
 	echo "-eppdf		Download the pdf transcript of the episode"
 	echo "-ephtml		Download the html transcript of the episode"
-	echo "-epnotes	Download the show notes of the episode(Not all available)"
+	echo "-epnotes	Download the show notes of the episode(Early shows had none)"
 
 	echo "------------------------------------------------------------------------------------"
 	echo "Search Mode:"
@@ -287,6 +289,14 @@ function output_help() {
 	echo "Misc Options:"
 
 	echo "-d		Download the files into this specified directory. Eg: -d /home/user/Downloads/security_now"
+	echo "-ff		File Format. Allows you to specify the order of the elements that make up the filename."
+	echo "			Choose from: <showname> <episodenumber> <episodename> <episodeyear> <date> <type> <raw>(same as the downloaded filename)"
+	echo "			The default is: -ff \"<raw>\""
+	echo "			Presets:"
+	echo "				Ordered:	-ff ordered"
+	echo "					Which is: \"<number> <name> - <date>\""
+	echo "				Kodi:		-ff kodi"
+	echo "					Which is: \"<showname> S<episodeyear>E<episodenumber>\""
 	echo "-p		Pretend mode. It will only spit out the headers and numbers. It will not download any files"
 	echo "			(except the webpage needed to find the latest episodes)"
 	echo "-q		Quite mode. Minimal on search and nothing but errors on episode downloads will be outputted to the screen."
@@ -306,7 +316,7 @@ function do_headers() {
 	# Convert the passed array into something usable
 	declare -a pass_arr=("${!1}") # Crazy syntax here !
 
-	# Make a nice looking border the same length as my variable + 2 for the edge.
+	# Make a nice looking border the same length as my variable + 4 for the edge.
 	var_size=$((21+${#latest_episode}+${#latest_episode_name}))
 	#echo $var_size
 
@@ -317,7 +327,7 @@ function do_headers() {
 	echo "Home URL: http://techblog.sethleedy.name/?p=24172"
 	echo " "
 	str=$(printf "%${var_size}s"); echo ${str// /#}
-	echo "# Latest Episode: $latest_episode $latest_episode_name"" #"
+	echo "# ""Latest Episode: $latest_episode $latest_episode_name"" #"
 	str=$(printf "%${var_size}s"); echo ${str// /#}
 	echo " "
 
@@ -511,9 +521,14 @@ function do_find_last_local_episode_cache() {
 	
 	# This will naturaly sort the epi filenames by the numbers within them, then extract the final number
 	# ls -v | tail -n1 | cut -d "-" -f 2 | cut -d "." -f 1
-	
-	echo $(ls -v .tmp_search_txt | tail -n1 | cut -d "-" -f 2 | cut -d "." -f 1)
+	declare last_local_number
+	last_local_number=$(ls -v .tmp_search_txt | tail -n1 | cut -d "-" -f 2 | cut -d "." -f 1)
 
+	if [ "$last_local_number" == "" ]; then
+		last_local_number=0
+	fi
+
+	echo $last_local_number
 }
 
 # Scans the directory to find the highest number in the list of downloaded files.
@@ -587,6 +602,7 @@ function do_downloading() {
 		# Convert the interger to leading zeros for proper filename.
 		#EPISODE_Cur=$( printf "%.4d" $d )
 		EPISODE_Cur=$(padLeadingZeros 4 $(stripLeadingZeros "$d"))
+		declare dash_o
 
 		if  $download_audio_hq ; then
 			for (( d=$c; d<$(($c+$slot_downloads)); d++ )); do
@@ -635,7 +651,7 @@ function do_downloading() {
 					echo "${homeclr}Downloading LQ audio episode ${EPISODE_Cur}..."
 				fi
 
-				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_LQ"`
+				tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_LQ"`
 				ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
 				pid[$d]=$ttpid
 
@@ -664,14 +680,21 @@ function do_downloading() {
 					else
 						echo -ne "${homeclr}Downloading: text episode ${EPISODE_Cur}"
 					fi
-
 				fi
 
-				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_TEXT"`
+				# Contruct the filename format for the -ff argument.
+				if $do_file_format ; then
+					construct_the_filename_format
+					formatted_file_name="$formatted_file_name.txt"
+					#declare dash_o
+					dash_o="-O "
+				fi
+
+				tpid=`wget $skip_wget_digital_check $new_download_home $dash_o"$formatted_file_name" -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_TEXT"`
 				ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
 				pid[$d]=$ttpid
 
-				#echo "PID: ${pid[$d]}"
+				#echo "$formatted_file_name"
 			done
 		fi
 		if  $download_episode_pdf ; then
@@ -693,7 +716,7 @@ function do_downloading() {
 					echo "${homeclr}Downloading episode text ${EPISODE_Cur}..."
 				fi
 
-				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_PDF"`
+				tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_PDF"`
 				ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
 				pid[$d]=$ttpid
 
@@ -719,7 +742,7 @@ function do_downloading() {
 					echo "${homeclr}Downloading episode text ${EPISODE_Cur}..."
 				fi
 
-				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_HTML"`
+				tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_HTML"`
 				ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
 				pid[$d]=$ttpid
 
@@ -745,7 +768,7 @@ function do_downloading() {
 					echo "${homeclr}Downloading episode show notes ${EPISODE_Cur}..."
 				fi
 
-				tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_SHOWNOTES"`
+				tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_SHOWNOTES"`
 				ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
 				pid[$d]=$ttpid
 
@@ -779,7 +802,7 @@ function do_downloading() {
 						echo "${homeclr}Downloading HD video episode ${EPISODE_Cur}..."
 					fi
 
-					tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_HD"`
+					tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_HD"`
 					ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
 					pid[$d]=$ttpid
 				else
@@ -818,7 +841,7 @@ function do_downloading() {
 						echo "${homeclr}Downloading HQ video episode ${EPISODE_Cur}..."
 					fi
 
-					tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_HQ"`
+					tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_HQ"`
 					ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
 					pid[$d]=$ttpid
 				else
@@ -857,7 +880,7 @@ function do_downloading() {
 						echo "${homeclr}Downloading LQ video episode ${EPISODE_Cur}..."
 					fi
 
-					tpid=`wget $skip_wget_digital_check -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_LQ"`
+					tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_LQ"`
 					ttpid=(`echo $tpid | cut -d " " -f 5 | cut -d "." -f 1`)
 					pid[$d]=$ttpid
 				else
@@ -905,7 +928,11 @@ function do_downloading() {
 	done
 
 	if ! $quite_mode ; then
+		echo " "
 		echo "Done downloading."
+		
+		# Debug
+		#echo "-> $formatted_file_name"
 	fi
 
 
@@ -961,7 +988,9 @@ function fill_cache() {
 	if [ $last_local_cache_epi -lt $latest_episode ]; then
 		
 		# Change to the temp search txt directory
-		cd "$script_directory_path/$download_temp_txt_search_dir"
+		echo "Temp: $script_directory_path/$download_temp_txt_search_dir"
+		#cd "$script_directory_path/$download_temp_txt_search_dir"
+		cd "$script_directory_path"
 		
 		# Run another instance of this script in the background so we can run a foreground spinner to indicate it's "working".
 		../$0 -ep $last_local_cache_epi:latest -eptxt -q -s_override -pd 20 & # Put it into the background so we can use the spinner. Need to capture PID and kill it if we kill this script.
@@ -1067,6 +1096,22 @@ function trim_str() {
 
 	#echo "$1" | sed -e "s/[[:space:]]\+/ /g"
 	echo "$1" | sed 's/^[ \t]*//;s/[ \t]*$//'
+
+}
+
+# Replace every substring with a provided string, within a whole string.
+function replace_str() {
+# $1 = whole string
+# $2 = find string
+# $3 = replacement string
+	declare wholestr
+	wholestr="$1"
+
+	#   ${parameter/pattern/string}
+	#firstString="I love Suzi and Marry"
+	#secondString="Sara"
+	#echo "${firstString/Suzi/$secondString}"    # prints 'I love Sara and Marry'
+	echo "${wholestr//$2/$3}" # First slash is a single for a single replacement in the whole string. A double slash replaces every intance.
 
 }
 
@@ -1190,7 +1235,8 @@ function rss_footer() {
 # Helper function to grab show title
 function grab_item_title() {
 	#echo "TITLE"
-		gtemp=$(grep --text -i "title:" $1 | cut -d ":" -f 2)
+		gtemp=$(grep --text -i "title:" $1 | cut -d ":" -f 2 || false)
+
 		# Strip carriage returns
 		gtemp=$(strip_text_cr "$gtemp")
 		# Convert some chars to HTML entitys for XML in the file.
@@ -1207,6 +1253,7 @@ function grab_item_link() {
 		# Grab the URL
 		# URL format changed at some point. Newer files have "SOURCE:".
 		gtemp=$(grep --text "SOURCE FILE:" $1 | cut -d ":" -f 2-3)
+
 		if [[ "$gtemp" == "" ]]; then
 			#echo "2-2"
 			gtemp=$(grep --text "SOURCE:" $1 | cut -d ":" -f 2-3)
@@ -1235,6 +1282,7 @@ function grab_item_link() {
 # Helper function to grab show DESCRIPTION
 function grab_item_description() {
 		gtemp=$(grep --text -i "DESCRIPTION:" $1 | cut -d ":" -f 2)
+
 		# Strip carriage returns
 		gtemp=$(strip_text_cr "$gtemp")
 		# Convert some chars to HTML entitys for XML in the file.
@@ -1247,7 +1295,8 @@ function grab_item_description() {
 
 # Helper function to grab show publication date
 function grab_item_pubdate() {
-		gtemp=$(grep --text -i "date:" $1 | cut -d ":" -f 2)
+		gtemp=$(grep --text -i "date:" $1 | cut -d ":" -f 2 || false)
+
 		# Strip carriage returns
 		gtemp=$(strip_text_cr "$gtemp")
 		# Trim white spaces
@@ -1279,8 +1328,8 @@ function do_rss_feed() {
 	# Remember to swap out the GRC url'ss for CDN's. If this provider changes, comment out the function and it will work with GRCs URL's(if hosted there), Steve Gibson told me to not use them !!.
 
 	# This will setup all the text data we need to parse into a RSS feed file.
-	echo "Filling Cache"
-	fill_cache	# Get the cache downloaded!
+	#echo "Filling Cache"
+	#fill_cache	# Get the cache downloaded!
 
 	# Create the header
 	rss_header_txt=$(rss_header)
@@ -1439,6 +1488,37 @@ function write_to_rss_file() {
 
 }
 
+# This will contruct the Filename Format as required by the argument -ff.
+# Used just before downloading the file so we have all the variables ready.
+function construct_the_filename_format() {
+
+	# Replace <tags> tags within $format_arguments, with variable data.
+		# <showname> <episodenumber> <episodename> <episodeyear> <date> <type> <raw>(same as the downloaded filename)
+	# Use function replace_str()
+		# $1 = whole string
+		# $2 = find string
+		# $3 = replacement string
+	format_arguments_str=$(replace_str "$format_arguments" "<showname>" "GRC's Security Now")
+	format_arguments_str=$(replace_str "$format_arguments_str" "<episodenumber>" "$EPISODE_Cur")
+	
+	# Cut out the Episode Name
+	EPISODE_Name_replace=$(grab_item_title "$download_temp_txt_search_dir/sn-$EPISODE_Cur.txt")
+	format_arguments_str=$(replace_str "$format_arguments_str" "<episodename>" "$EPISODE_Name_replace")
+	EPISODE_Year_replace=$(grab_item_pubdate "$download_temp_txt_search_dir/sn-$EPISODE_Cur.txt")
+	
+	# Cut out the Year
+	EPISODE_Year_replace=$(echo "$EPISODE_Year_replace" | cut -d "," -f 2)
+	EPISODE_Year_replace=$(trim_str "$EPISODE_Year_replace")
+	format_arguments_str=$(replace_str "$format_arguments_str" "<episodeyear>" "$EPISODE_Year_replace")
+
+	format_arguments_str=$(replace_str "$format_arguments_str" "<date>" "$EPISODE_Cur")
+	format_arguments_str=$(replace_str "$format_arguments_str" "<type>" "$EPISODE_Cur")
+	format_arguments_str=$(replace_str "$format_arguments_str" "<raw>" "$EPISODE_Cur")
+	format_arguments_str=$(trim_str "$format_arguments_str")
+	#format_arguments_str=$(replace_str "$format_arguments_str" " " "\ ")
+
+	formatted_file_name="$new_download_home_dir$format_arguments_str"
+}
 
 # Lets Start
 clear
@@ -1629,8 +1709,31 @@ until [ -z "$1" ]; do
 
 	if [ "$1" == "-d" ]; then
 		shift
-		new_download_home="-P $1"
+
+		# Make sure there is a slash on the end of the string
+		case "$1" in
+		*/)
+			new_download_home_dir="$1" # Has a slash on the end already.
+			;;
+		*)
+			new_download_home_dir="$1/" # Does not have a slash. Adds one.
+			;;
+		esac
+		
+		new_download_home="-P $new_download_home_dir"
+		
 	fi
+	if [ "$1" == "-ff" ]; then
+		shift
+		do_file_format=true
+		
+		# Grab the argument after the -ff.
+		format_arguments="$1"
+
+		# Rest handled in function construct_the_filename_format()
+		# called just before the downloading of a file.
+	fi
+
 	if [ "$1" == "-p" ]; then
 		pretend_mode=true
 	fi
@@ -1808,7 +1911,9 @@ elif ! $download_latest && ! $download_episode_number && $do_episode_downloading
 			EPISODE_capt=$(ls -1 *.mp4 | tail -n 1 | grep -io "^sn...." | grep -o "....$")
 			# Strip the Zeros
 			#Needed because bash sees leading zeros as somthing else. "Numerical values starting with a zero (0) are interpreted as numbers in octal notation by the C language. As the only digits allowed in octal are {0..7}, an 8 or a 9 will cause the evaluation to fail."
-			declare -i epi_no_zero="$(echo $EPISODE_capt | sed 's/0*//')"
+			#declare -i epi_no_zero="$(echo $EPISODE_capt | sed 's/0*//')"
+			declare -i epi_no_zero="$(stripLeadingZeros $EPISODE_capt)"
+
 			# Do the math to increase the count AND Bring it back to the leading 0 format so that the filename is correct, using BASE#NUMBER.
 			#EPISODE=$( printf "%03d\n" $(( 10#$epi_no_zero + 1 )) )
 			epi_no_zero=$epi_no_zero+1
@@ -1853,18 +1958,27 @@ if ! $quite_mode ; then
 	do_headers add_to_headers[@]
 fi
 
-#echo "ahq: $download_audio_hq, alq: $download_audio_lq, vhq: $download_video_hq, vlq: $download_video_lq, p: $pretend_mode, all: $download_all, latest: $download_latest, download_episode_number: $download_episode_number"
-if ! $quite_mode && ! $search_txt_local && ! $search_txt_download && ! $create_rss_mode; then
-	echo "Downloading episodes $(echo $EPISODE | sed 's/0*//' | sed 's/-*//') to $(echo $EPISODE_TO | sed 's/0*//' | sed 's/-*//')"
-	echo " "
-fi
-
+# We need to first download ALL the Security Now text files to find all the show TITLES,DATES,DESCRIPTIONS,CONTENT,etc
+# From the files, we can create a RSS Feed file.
+# Remember to swap out the GRC url'ss for CDN's. If this provider changes, comment out the function and it will work with GRCs URL's(if hosted there), Steve Gibson told me to not use them !!.
 
 # Nearly ready to do some work
 # Before doing so, uncompress the cache ONCE, instead of on each call; downloading, search, RSS feed
 # Faster this way
 		# call uncompress/compress function for cache.
 		do_cache "uncompress"
+
+# This will setup all the text data we need to parse into a RSS feed file.
+echo "Filling Cache, required for formatted filenames, RSS feeds, and Searching Episodes Texts."
+spinner_step
+fill_cache	# Get the cache downloaded!
+
+#echo "ahq: $download_audio_hq, alq: $download_audio_lq, vhq: $download_video_hq, vlq: $download_video_lq, p: $pretend_mode, all: $download_all, latest: $download_latest, download_episode_number: $download_episode_number"
+if ! $quite_mode && ! $search_txt_local && ! $search_txt_download && ! $create_rss_mode; then
+	#echo "Downloading episodes $(echo $EPISODE | sed 's/0*//' | sed 's/-*//') to $(echo $EPISODE_TO | sed 's/0*//' | sed 's/-*//')"
+	echo "Downloading episodes $(stripLeadingZeros $EPISODE) to $(stripLeadingZeros $EPISODE_TO)"
+	echo " "
+fi
 
 # Before working, Send Ping
 send_ping
