@@ -12,7 +12,13 @@ this_version=2.1
 do_gh_update=false
 gh_version=-1
 curr_directory_name="${PWD##*/}"
+#echo "curr_directory_name: $curr_directory_name" > test.txt
 script_directory_path="$(pwd)"
+#echo "script_directory_path: $script_directory_path" >> test.txt
+script_name=$(echo $0 | cut -d "/" -f 2) # Removes the './' from the script name
+#echo "script_name: $script_name" >> test.txt
+script_location_and_name="$script_directory_path/$script_name"
+#echo "script_location_and_name: $script_location_and_name" >> test.txt
 find_latest_episode_url="http://www.grc.com/securitynow.htm"
 
 #EPISODE_NAME_AUDIO_HQ_URL="http://media.grc.com/sn"
@@ -51,10 +57,11 @@ download_episode_number=false
 download_latest=false
 download_all=false
 pretend_mode=false
-par_downloads=false
-par_downloads_count=1
+par_downloads=false # Set this to true for multiple downloads at once by default. Otherwise use the argument "-pd 4"
+par_downloads_count=4 # Set this to how many at once or use the argument "-pd 4"
 new_download_home=""
 quite_mode=false
+cache_mode=false
 declare -a pid
 declare -a add_to_headers
 declare -a check_program_exists_arr
@@ -340,179 +347,188 @@ function do_headers() {
 # Compress / UnCompress the cache based on available programs.
 function do_cache() {
 
-		# Create temp download area
-		curr_directory_name_temp=${PWD##*/} # Get the current directory name
-		if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then # make sure we are not already inside the directory to search files
-			if [ ! -d "$download_temp_txt_search_dir" ]; then # If it does not exists already
-				mkdir $download_temp_txt_search_dir >/dev/null 2>&1 # Create the directory to hold all text epi to search for text within.
-			fi
+	# Create temp download area
+	curr_directory_name_temp=$curr_directory_name # Get the current directory name in a temp var.
+	if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then # make sure we are not already inside the directory to search files
+		if [ ! -d "$download_temp_txt_search_dir" ]; then # If it does not exists already
+			mkdir $download_temp_txt_search_dir >/dev/null 2>&1 # Create the directory to hold all text epi to search for text within.
+		fi
+	fi
+
+	# Test to see if the background process to fill the directory is still ongoing based on the marker file, if not there proceed with compression.
+	# If it is there, exit the function. The foreground process, that created the background process, can compress later. Normally when the script is shutting down.
+	if [ -f "$script_directory_path/$download_temp_txt_search_dir/._fill_cache_working_" ]; then
+		return
+	fi
+
+	# A marker to know either the program is still working in the background, filling the cache, OR it crashed.
+	touch "$script_directory_path/$download_temp_txt_search_dir/._do_cache_working_"
+
+	# If compressed cache exists, uncompress it.
+	# Check to see what program we can use to compress/uncompress the cache.
+	check_program_exists_arr[0]="7z"
+	check_program_exists_arr[1]="gzip"
+	check_program_exists_arr[2]="zip"
+	check_program_exists_arr[3]="bzip2"
+	check_program_exists_arr[4]="p7zip" # Install p7zip-full. One package had p7zip, but not 7z. So it could only decompress.
+
+	# Array will be empty if nothing is found.
+	check_program_exists_multi check_program_exists_arr[@] # This will remove from the array any programs that are not detected.
+
+	# Debug
+	#echo "${check_program_exists_arr[0]}"
+	#exit
+	if [[ ${check_program_exists_arr[0]} != "" ]] ; then # Empty ?
+		if ! $quite_mode ; then
+			echo " "
+			echo "Using compression program: ${check_program_exists_arr[0]}"
 		fi
 
-		# If compressed cache exists, uncompress it.
-		# Check to see what program we can use to compress/uncompress the cache.
-		check_program_exists_arr[0]="7z"
-		check_program_exists_arr[1]="gzip"
-		check_program_exists_arr[2]="zip"
-		check_program_exists_arr[3]="bzip2"
-		check_program_exists_arr[4]="p7zip" # Install p7zip-full. One package had p7zip, but not 7z. So it could only decompress.
-
-		# Array will be empty if nothing is found.
-		check_program_exists_multi check_program_exists_arr[@] # This will remove from the array any programs that are not detected.
-
-		# Debug
-		#echo "${check_program_exists_arr[0]}"
-		#exit
-		if [[ ${check_program_exists_arr[0]} != "" ]] ; then # Empty ?
-			if ! $quite_mode ; then
-				echo " "
-				echo "Using compression program: ${check_program_exists_arr[0]}"
+		# Use proper command/arguments for which program is available
+		case "${check_program_exists_arr[0]}" in
+		'gzip')
+			if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
+				cd "$download_temp_txt_search_dir"
+				skip_cd=false
+			else
+				skip_cd=true
 			fi
+			if [[ "$1" == "uncompress" ]]; then
+				if ! $quite_mode ; then
+					echo "Uncompressing cache in foreground"
+				fi
+				gunzip -q *.gz &> /dev/null
+				
+			elif [[ "$1" == "compress" ]]; then
+				if ! $quite_mode ; then
+					echo "Compressing cache in background"
+				fi
+				gzip -9 *.txt > /dev/null 2>&1
+				
+			fi
+			
+			if ! $skip_cd; then
+				cd ..
+			fi
+			;;
+		'zip')
+			if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
+				cd "$download_temp_txt_search_dir"
+				skip_cd=false
+			else
+				skip_cd=true
+			fi
+			if [[ "$1" == "uncompress" ]]; then
+				if ! $quite_mode ; then
+					echo "Uncompressing cache in foreground"
+				fi
+				unzip -qq -o cache.zip &> /dev/null
+				rm -f cache.zip >/dev/null 2>&1
+			elif [[ "$1" == "compress" ]]; then
+				if ! $quite_mode ; then
+					echo "Compressing cache in background"
+				fi
+				{ zip -9 -qq cache.zip *.txt > /dev/null; rm -f *.txt > /dev/null; } &
+			fi
+			
+			if ! $skip_cd; then
+				cd ..
+			fi
+			;;
+		'bzip2')
+			if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
+				cd "$download_temp_txt_search_dir"
+				skip_cd=false
+			else
+				skip_cd=true
+			fi
+			if [[ "$1" == "uncompress" ]]; then
+				if ! $quite_mode ; then
+					echo "Uncompressing cache in foreground"
+				fi
+				find *.bz2 -type f -exec bunzip2 -q {} ;
+				
+			elif [[ "$1" == "compress" ]]; then
+				if ! $quite_mode ; then
+					echo "Compressing cache in background"
+				fi
+				#bzip2 -sqf -9 *.txt >/dev/null 2>&1
+				find *.txt -type f -exec bzip2 -q -sqf -9 {} ;
+				
+			fi
+			
+			if ! $skip_cd; then
+				cd ..
+			fi
+			;;
+		'7z')
+			if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
+				cd "$download_temp_txt_search_dir"
+				skip_cd=false
+			else
+				skip_cd=true
+			fi
+			#echo "$curr_directory_name_temp"
+			#echo "$download_temp_txt_search_dir"
+			#exit
+			if [[ "$1" == "uncompress" ]]; then
+				if ! $quite_mode ; then
+					echo "Uncompressing cache in foreground"
+				fi
+				7z e cache.7z > /dev/null
+				rm -f cache.7z > /dev/null
+			elif [[ "$1" == "compress" ]]; then
+				if ! $quite_mode ; then
+					echo "Compressing cache in background"
+				fi
 
-			# Use proper commands for which program is available
-			case "${check_program_exists_arr[0]}" in
-			'gzip')
-				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
-					cd "$download_temp_txt_search_dir"
-					skip_cd=false
-				else
-					skip_cd=true
+				# Run compression in background so there is no delay on the terminal
+				# This may cause issues if the user reuses the script immediately. eg: deleting files at the same time as rechecking or downloading on the new script run.
+				{ 7z a -mx=9 -bsp0 -bso0 cache.7z *.txt; rm -f *.txt > /dev/null; } &
+			fi
+			
+			if ! $skip_cd; then
+				cd ..
+			fi
+			;;
+		'p7zip')
+			if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
+				cd "$download_temp_txt_search_dir"
+				skip_cd=false
+			else
+				skip_cd=true
+			fi
+			#echo "$curr_directory_name_temp"
+			#echo "$download_temp_txt_search_dir"
+			#exit
+			if [[ "$1" == "uncompress" ]]; then
+				if ! $quite_mode ; then
+					echo "Uncompressing cache in foreground"
 				fi
-				if [[ "$1" == "uncompress" ]]; then
-					if ! $quite_mode ; then
-						echo "Uncompressing cache"
-					fi
-					gunzip *.gz >/dev/null 2>&1
-					
-				elif [[ "$1" == "compress" ]]; then
-					if ! $quite_mode ; then
-						echo "Compressing cache"
-					fi
-					gzip *.txt >/dev/null 2>&1
-					
+				p7zip -d cache.7z &> /dev/null
+				rm -f cache.7z &> /dev/null
+			elif [[ "$1" == "compress" ]]; then
+				if ! $quite_mode ; then
+					echo "Compressing cache in background"
 				fi
-				
-				if ! $skip_cd; then
-					cd ..
-				fi
-				;;
-			'zip')
-				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
-					cd "$download_temp_txt_search_dir"
-					skip_cd=false
-				else
-					skip_cd=true
-				fi
-				if [[ "$1" == "uncompress" ]]; then
-					if ! $quite_mode ; then
-						echo "Uncompressing cache"
-					fi
-					unzip -qq -o cache.zip >/dev/null 2>&1
-					rm -f cache.zip >/dev/null 2>&1
-				elif [[ "$1" == "compress" ]]; then
-					if ! $quite_mode ; then
-						echo "Compressing cache"
-					fi
-					zip -9 -qq cache.zip *.txt >/dev/null 2>&1;
-					rm -f *.txt >/dev/null 2>&1
-				fi
-				
-				if ! $skip_cd; then
-					cd ..
-				fi
-				;;
-			'bzip2')
-				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
-					cd "$download_temp_txt_search_dir"
-					skip_cd=false
-				else
-					skip_cd=true
-				fi
-				if [[ "$1" == "uncompress" ]]; then
-					if ! $quite_mode ; then
-						echo "Uncompressing cache"
-					fi
-					find *.bz2 -type f -exec bunzip2 -q {} ;
-					
-				elif [[ "$1" == "compress" ]]; then
-					if ! $quite_mode ; then
-						echo "Compressing cache"
-					fi
-					#bzip2 -sqf -9 *.txt >/dev/null 2>&1
-					find *.txt -type f -exec bzip2 -q -sqf -9 {} ;
-					
-				fi
-				
-				if ! $skip_cd; then
-					cd ..
-				fi
-				;;
-			'7z')
-				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
-					cd "$download_temp_txt_search_dir"
-					skip_cd=false
-				else
-					skip_cd=true
-				fi
-				#echo "$curr_directory_name_temp"
-				#echo "$download_temp_txt_search_dir"
-				#exit
-				if [[ "$1" == "uncompress" ]]; then
-					if ! $quite_mode ; then
-						echo "Uncompressing cache"
-					fi
-					7z e cache.7z >/dev/null 2>&1
-					rm -f cache.7z >/dev/null 2>&1
-				elif [[ "$1" == "compress" ]]; then
-					if ! $quite_mode ; then
-						echo "Compressing cache"
-					fi
 
-					# Run compression in background so there is no delay on the terminal
-					# This may cause issues if the user reuses the script immediately. eg: deleting files at the same time as rechecking or downloading on the new script run.
-					7z a -mx=9 cache.7z *.txt >/dev/null 2>&1
-					rm -f *.txt >/dev/null 2>&1	
-				fi
-				
-				if ! $skip_cd; then
-					cd ..
-				fi
-			   ;;
-			'p7zip')
-				if [ "$curr_directory_name_temp" != "$download_temp_txt_search_dir" ]; then
-					cd "$download_temp_txt_search_dir"
-					skip_cd=false
-				else
-					skip_cd=true
-				fi
-				#echo "$curr_directory_name_temp"
-				#echo "$download_temp_txt_search_dir"
-				#exit
-				if [[ "$1" == "uncompress" ]]; then
-					if ! $quite_mode ; then
-						echo "Uncompressing cache"
-					fi
-					p7zip -d cache.7z >/dev/null 2>&1
-					rm -f cache.7z >/dev/null 2>&1
-				elif [[ "$1" == "compress" ]]; then
-					if ! $quite_mode ; then
-						echo "Compressing cache"
-					fi
+				# Run compression in background so there is no delay on the terminal
+				# This may cause issues if the user reuses the script immediately. eg: deleting files at the same time as rechecking or downloading on the new script run.
+				{ p7zip cache.7z *.txt > /dev/null; rm -f *.txt > /dev/null; } &
+			fi
+			
+			if ! $skip_cd; then
+				cd ..
+			fi
+			;;
+		esac
 
-					# Run compression in background so there is no delay on the terminal
-					# This may cause issues if the user reuses the script immediately. eg: deleting files at the same time as rechecking or downloading on the new script run.
-					p7zip cache.7z *.txt >/dev/null 2>&1
-					rm -f *.txt >/dev/null 2>&1	
-				fi
-				
-				if ! $skip_cd; then
-					cd ..
-				fi
-			   ;;
-			esac
+	else
+		echo "No compression program found. Install a compression program like 7z or bzip2 to compress the cached search files."
+	fi
 
-		else
-			echo "No compression program found. Install a compression program like 7z or bzip2 to compress the cached search files."
-		fi
+	# Remove Marker
+	rm "$script_directory_path/$download_temp_txt_search_dir/._do_cache_working_"
 
 }
 
@@ -592,7 +608,7 @@ function do_downloading() {
 
 	# Setup Loop here to download a range of episodes.
 	#loop from EPISODE to EPISODE_TO
-	slot_downloads=$(($par_downloads_count))
+	slot_downloads=$par_downloads_count
 
 	#echo "Slot download: $slot_downloads"
 	c=$EPISODE
@@ -622,7 +638,7 @@ function do_downloading() {
 				EPISODE_NAME_AUDIO_HQ="${EPISODE_NAME_AUDIO_HQ_URL}/sn${EPISODE_Cur}/sn${EPISODE_Cur}.mp3"
 
 				if ! $quite_mode ; then
-					echo "${homeclr}Downloading HQ audio episode ${EPISODE_Cur}..."
+					echo -e "${homeclr}Downloading:\tHQ audio episode ${EPISODE_Cur}..."
 				fi
 
 				tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_HQ"`
@@ -648,7 +664,7 @@ function do_downloading() {
 				EPISODE_NAME_AUDIO_LQ="${EPISODE_NAME_AUDIO_LQ_URL}/sn-${EPISODE_Cur}-lq.mp3"
 
 				if ! $quite_mode ; then
-					echo "${homeclr}Downloading LQ audio episode ${EPISODE_Cur}..."
+					echo -e "${homeclr}Downloading:\tLQ audio episode ${EPISODE_Cur}..."
 				fi
 
 				tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_LQ"`
@@ -660,7 +676,7 @@ function do_downloading() {
 			#echo "D2=$d"
 		fi
 		if  $download_episode_text ; then
-			for (( d=$c; d<$(($c+$slot_downloads)); d++ )); do
+			for (( d = $c; d < $(($c + $slot_downloads)); d++ )); do
 
 				# If the difference is less, then we can't download more.
 				epi_no_zero="$(echo $EPISODE_TO | sed 's/0*//')"
@@ -676,15 +692,16 @@ function do_downloading() {
 
 				if ! $quite_mode || ( $search_echo_override_mode && ! $quite_mode ) ; then
 					if $search_echo_override_mode ; then
-						echo -ne "${homeclr}Checking or Downloading: text episode ${EPISODE_Cur}"
+						echo -e "${homeclr}Checking or Downloading:\ttext episode ${EPISODE_Cur}"
 					else
-						echo -ne "${homeclr}Downloading: text episode ${EPISODE_Cur}"
+						echo -e "${homeclr}Downloading:\ttext episode ${EPISODE_Cur}"
 					fi
 				fi
 
 				# Contruct the filename format for the -ff argument.
 				if $do_file_format ; then
 					construct_the_filename_format
+					
 					formatted_file_name="$formatted_file_name.txt"
 					#declare dash_o
 					dash_o="-O "
@@ -713,7 +730,7 @@ function do_downloading() {
 				EPISODE_NAME_AUDIO_PDF="${EPISODE_NAME_AUDIO_PDF_URL}/sn-${EPISODE_Cur}.pdf"
 
 				if ! $quite_mode ; then
-					echo "${homeclr}Downloading episode text ${EPISODE_Cur}..."
+					echo -e "${homeclr}Downloading:\tepisode text ${EPISODE_Cur}..."
 				fi
 
 				tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_PDF"`
@@ -739,7 +756,7 @@ function do_downloading() {
 				EPISODE_NAME_AUDIO_HTML="${EPISODE_NAME_AUDIO_HTML_URL}/sn-${EPISODE_Cur}.htm"
 
 				if ! $quite_mode ; then
-					echo "${homeclr}Downloading episode text ${EPISODE_Cur}..."
+					echo -e "${homeclr}Downloading:\tepisode text ${EPISODE_Cur}..."
 				fi
 
 				tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_HTML"`
@@ -765,7 +782,7 @@ function do_downloading() {
 				EPISODE_NAME_AUDIO_SHOWNOTES="${EPISODE_NAME_AUDIO_SHOWNOTES_URL}/sn-${EPISODE_Cur}-notes.pdf"
 
 				if ! $quite_mode ; then
-					echo "${homeclr}Downloading episode show notes ${EPISODE_Cur}..."
+					echo -e "${homeclr}Downloading:\tepisode show notes ${EPISODE_Cur}..."
 				fi
 
 				tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_AUDIO_SHOWNOTES"`
@@ -799,7 +816,7 @@ function do_downloading() {
 				fi
 				if [ $? -eq 0 ]; then
 					if ! $quite_mode ; then
-						echo "${homeclr}Downloading HD video episode ${EPISODE_Cur}..."
+						echo -e "${homeclr}Downloading:\tHD video episode ${EPISODE_Cur}..."
 					fi
 
 					tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_HD"`
@@ -838,7 +855,7 @@ function do_downloading() {
 				fi
 				if [ $? -eq 0 ]; then
 					if ! $quite_mode ; then
-						echo "${homeclr}Downloading HQ video episode ${EPISODE_Cur}..."
+						echo -e "${homeclr}Downloading:\tHQ video episode ${EPISODE_Cur}..."
 					fi
 
 					tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_HQ"`
@@ -872,12 +889,12 @@ function do_downloading() {
 
 				check_url "$EPISODE_NAME_VIDEO_LQ"
 				if [ $? -ne 0 ]; then
-					check_url "EPISODE_NAME_VIDEO_LQ_m"
+					check_url "$EPISODE_NAME_VIDEO_LQ_m"
 					EPISODE_NAME_VIDEO_LQ="$EPISODE_NAME_VIDEO_LQ_m"
 				fi
 				if [ $? -eq 0 ]; then
 					if ! $quite_mode ; then
-						echo "${homeclr}Downloading LQ video episode ${EPISODE_Cur}..."
+						echo -e "${homeclr}Downloading:\tLQ video episode ${EPISODE_Cur}..."
 					fi
 
 					tpid=`wget $skip_wget_digital_check $new_download_home -U "$wget_agent_name" -N -c -qb "$EPISODE_NAME_VIDEO_LQ"`
@@ -944,7 +961,7 @@ function spinner() {
     local delay=0.4
     local spinstr='|/-\'
     
-    while [ $(ps a | grep 21928 | grep -v grep | wc -l) != 0 ]; do
+    while [ $(ps a | grep $pid | grep -v grep | wc -l) != 0 ]; do
         local temp=${spinstr#?}
         printf "$2 [%c]  " "$spinstr"
         local spinstr=$temp${spinstr%"$temp"}
@@ -971,7 +988,7 @@ function spinner_step() {
 
 #Simply wait on a process to finish based on its pid
 function wait_on_pid() {
-	while [ $(ps a | grep 21928 | grep -v grep | wc -l) ]; do
+	while [ $(ps $1 | grep $1 | wc -l) ]; do
         sleep .5
     done
 
@@ -980,31 +997,36 @@ function wait_on_pid() {
 # Fill up the cache files from last downloaded +1 to latest.
 function fill_cache() {
 	
+	# A marker to know either the program is still working in the background, filling the cache, OR it crashed.
+	touch "$script_directory_path/$download_temp_txt_search_dir/._fill_cache_working_"
+	
 	# Find the last epi number that was downloaded
 	last_local_cache_epi=$(do_find_last_local_episode_cache)
-	#echo "Cache: $last_local_cache_epi | Latest: $latest_episode"
+	echo "Cache: $last_local_cache_epi | Latest: $latest_episode"
 	let "last_local_cache_epi += 1" # Next one to download	
 	
 	if [ $last_local_cache_epi -lt $latest_episode ]; then
 		
-		# Change to the temp search txt directory
-		echo "Temp: $script_directory_path/$download_temp_txt_search_dir"
-		#cd "$script_directory_path/$download_temp_txt_search_dir"
-		cd "$script_directory_path"
-		
 		# Run another instance of this script in the background so we can run a foreground spinner to indicate it's "working".
-		../$0 -ep $last_local_cache_epi:latest -eptxt -q -s_override -pd 20 & # Put it into the background so we can use the spinner. Need to capture PID and kill it if we kill this script.
+		#echo "script_location_and_name: $script_location_and_name"
+		#exit
+		$script_location_and_name -ep $last_local_cache_epi:latest -eptxt -q -s_override -pd $par_downloads_count -cache_mode -d "$script_directory_path/$download_temp_txt_search_dir" & # Put it into the background so we can use the spinner. Need to capture PID and kill it if we kill this script.
 		# Capture running pid for killing if need be.
 		subsearch_pid=$!
-
+		if ! $quite_mode; then
+			echo "Waiting on PID $subsearch_pid: $(ps $subsearch_pid | grep -i GRC | cut -d ":" -f 2- | cut -d " " -f 3-)"
+		fi
+		
 		if ! $quite_mode; then # Needed to allow me to download all the cache file without searching within them. Used in the RSS Feed creation.
 			spinner $subsearch_pid "Filling Cache: " # Run the spinner to show that the script is not stuck
 		else
 			wait_on_pid $subsearch_pid # Simply wait without output
 		fi
 
-		cd ..
 	fi
+	
+	# Remove Marker
+	rm "$script_directory_path/$download_temp_txt_search_dir/._fill_cache_working_"
 }
 
 # Searching for text in episodes.
@@ -1521,7 +1543,7 @@ function construct_the_filename_format() {
 }
 
 # Lets Start
-clear
+#clear
 
 # Check arguments
 if [ $# -eq 0 ]; then
@@ -1760,6 +1782,12 @@ until [ -z "$1" ]; do
 		search_echo_override_mode=true
 	fi
 
+	# When we are filling the Cache, like on first run, we need to know if the script is doing the cache or it is a normal run.
+	# We are doing a subshell to fill the cache by calling the script again with some arguments.
+	# If cache_mode is true, skip filling the cache function because we are already doing that.
+	if [ "$1" == "-cache_mode" ]; then
+		cache_mode=true
+	fi
 
 	if [ "$1" == "-dandstxt" ]; then
 		search_txt_download=true
@@ -1963,26 +1991,31 @@ fi
 # Remember to swap out the GRC url'ss for CDN's. If this provider changes, comment out the function and it will work with GRCs URL's(if hosted there), Steve Gibson told me to not use them !!.
 
 # Nearly ready to do some work
-# Before doing so, uncompress the cache ONCE, instead of on each call; downloading, search, RSS feed
-# Faster this way
-		# call uncompress/compress function for cache.
-		do_cache "uncompress"
 
-# This will setup all the text data we need to parse into a RSS feed file.
-echo "Filling Cache, required for formatted filenames, RSS feeds, and Searching Episodes Texts."
-spinner_step
-fill_cache	# Get the cache downloaded!
+# We don't want to run this again as part of the background process to fill_cache()
+if ! $cache_mode; then
+	# Before doing so, uncompress the cache ONCE, instead of on each call; downloading, search, RSS feed
+	# Faster this way
+	# call uncompress/compress function for cache reading, but not for filling the cache..
+	do_cache "uncompress"
 
-#echo "ahq: $download_audio_hq, alq: $download_audio_lq, vhq: $download_video_hq, vlq: $download_video_lq, p: $pretend_mode, all: $download_all, latest: $download_latest, download_episode_number: $download_episode_number"
-if ! $quite_mode && ! $search_txt_local && ! $search_txt_download && ! $create_rss_mode; then
-	#echo "Downloading episodes $(echo $EPISODE | sed 's/0*//' | sed 's/-*//') to $(echo $EPISODE_TO | sed 's/0*//' | sed 's/-*//')"
-	echo "Downloading episodes $(stripLeadingZeros $EPISODE) to $(stripLeadingZeros $EPISODE_TO)"
-	echo " "
-fi
+	# This will setup all the text data we need to parse into a RSS feed file.
+	# We should only do this if not in Cache Mode already! Otherwise it recurses by calling itself over and over.
+	echo "Checking/Filling Cache, required for formatted filenames, RSS feeds, and Searching Episodes Texts."
+	spinner_step
+	fill_cache	# Get the cache downloaded!
 
-# Before working, Send Ping
-send_ping
+	#echo "ahq: $download_audio_hq, alq: $download_audio_lq, vhq: $download_video_hq, vlq: $download_video_lq, p: $pretend_mode, all: $download_all, latest: $download_latest, download_episode_number: $download_episode_number"
+	if ! $quite_mode && ! $search_txt_local && ! $search_txt_download && ! $create_rss_mode; then
+		#echo "Downloading episodes $(echo $EPISODE | sed 's/0*//' | sed 's/-*//') to $(echo $EPISODE_TO | sed 's/0*//' | sed 's/-*//')"
+		echo "Downloading episodes: $(stripLeadingZeros $EPISODE) to $(stripLeadingZeros $EPISODE_TO)"
+		echo " "
+	fi
 
+	# Before working, Send Ping
+	send_ping
+
+fi # End cache_mode
 
 # Do some episode downloading!
 #if ! ($search_txt_local || $search_txt_download) ; then
@@ -2044,9 +2077,11 @@ fi
 
 
 # call uncompress/compress function for cache.
-# This is too save space and preserve the text from rogue changes. Should remove all .txt files after compression.
-if ! $search_echo_override_mode ; then # This is for the cache download. We don't want to compress it after downloading it. See fill_cache function
-	do_cache "compress"
+# This is too save space and preserve the text from rogue changes. It will remove all .txt files after compression.
+if ! $cache_mode; then
+	if ! $search_echo_override_mode ; then # This is for the cache download. We don't want to compress it after downloading it. See fill_cache function
+		do_cache "compress"
+	fi
 fi
 
 do_script_shutdown 0
