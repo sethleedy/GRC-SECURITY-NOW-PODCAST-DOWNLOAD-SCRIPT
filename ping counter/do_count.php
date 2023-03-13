@@ -1,65 +1,82 @@
 <?php
 
-echo "UA: " . $_SERVER['HTTP_USER_AGENT'] . "<br>";
+if (isset($_SERVER['HTTP_USER_AGENT'])) {
+	echo "UA: " . $_SERVER['HTTP_USER_AGENT'] . "<br>";
+}
 
 //connection:
-// mysqli_connect("serverAddress", "username", "password", "database");
-$link = mysqli_connect("localhost","script_counter_user","script_counter_pass","MyScriptStats") or die("Error1 " . mysqli_error($link));
+#$link = mysqli_connect("localhost","script_counter","script_counter_pass","MyScriptStats") or die("Error1 " . mysqli_error($link));
+$link = new SQLite3("grc.db"); // This will create the file if it does not exist.
 
-// Check after MySQLi connection
-if (isset($_REQUEST['agent_code'])) {
-	$user_agent_string=$link->real_escape_string($_REQUEST['agent_code']);
+// Setup new DB?
+// If the db is zero in size, like a newly created DB from above, create the schema.
+clearstatcache(); // First make sure the cache is clear so we get a proper file size.
+if (file_exists("GRC.db") && filesize("GRC.db") == 0) {
+	// Insert the schema
+	echo "Creating DB...";
+	$link->exec('CREATE TABLE IF NOT EXISTS UserAgents_Count (INTEGER NOT NULL PRIMARY KEY, pingcount INTEGER NOT NULL, user_agent_string STRING NOT NULL)') or die('Create db failed');
 } else {
-	$user_agent_string="Nothing passed. Setting to: " . $link->real_escape_string($_SERVER['HTTP_USER_AGENT']);
+	echo nl2br("Found DB!\n");
 }
-//echo $user_agent_string . "<br>";
+
+// Check agent code
+if (isset($_REQUEST['agent_code'])) {
+	//$user_agent_string=$link->real_escape_string($_REQUEST['agent_code']);
+	$user_agent_string=$link->escapeString($_REQUEST['agent_code']);
+} else {
+	//$user_agent_string="Nothing passed. Setting to: " . $link->real_escape_string($_SERVER['HTTP_USER_AGENT']);
+	$user_agent_string="Nothing passed. Setting to: " . $link->escapeString($_SERVER['HTTP_USER_AGENT']);
+}
+//echo nl2br("$user_agent_string\n");
 //exit;
 $last_ping_count=0;
 
 //Does my User Agent exist already ?
-$query = $link->query("SELECT pingcount FROM UserAgents_Count WHERE user_agent_string='" . $user_agent_string . "'") or die("Error in the consult.." . mysqli_error($link));
-$result=$query->fetch_object();
+$query_results = $link->query("SELECT pingcount FROM UserAgents_Count WHERE user_agent_string='" . $user_agent_string . "'") or die("Error in the DB User Agent Check..." . $link->lastErrorMsg());
+$result=$query_results->fetchArray(SQLITE3_ASSOC);
+//print_r($result);
+$result=(object) $result; // Cast as an object for use below.
+//print_r($result);
+
 if (isset($result->pingcount)) {
 	$last_ping_count=$result->pingcount;
-	echo "Last Count: " . $last_ping_count . "<br>";
+	echo nl2br("Last Count: " . $last_ping_count . "\n");
 }
-
 
 // Exists ?
 if (isset($result->pingcount)) {
 
 	$last_ping_count++;
-	echo "Updating to: " . $last_ping_count . "<br>";
+	echo nl2br("Updating to: " . $last_ping_count . "\n");
 
 	//update
-	if ($stmt = $link->prepare("UPDATE UserAgents_Count SET pingcount=? WHERE user_agent_string='" . $user_agent_string . "'")) {
-		$stmt->bind_param('i', $last_ping_count);
-		//$stmt->bindParam(':value', $value);
-
+	//if ($stmt = $link->prepare("UPDATE UserAgents_Count SET pingcount=? WHERE user_agent_string='" . $user_agent_string . "'")) {
+	if ($stmt = $link->prepare("UPDATE UserAgents_Count SET pingcount=:pingcount WHERE user_agent_string='" . $user_agent_string . "'")) {
+		$stmt->bindValue(':pingcount', $last_ping_count);
+		
 		$stmt->execute();
-		$stmt->free_result();
 
 	} else {
-		echo "Errormessage: " . mysqli_error($link);
+		echo nl2br("Errormessage: " . $link->lastErrorMsg());
 	}
 
 } else {
 	//insert
-	echo "Inserting" . "<br>";
+	echo nl2br("Inserting\n");
 
 	if ($stmt = $link->prepare("INSERT INTO UserAgents_Count (user_agent_string, pingcount) VALUES (?, ?)")) {
 		$tmp1=$user_agent_string;
 		$tmp2=$last_ping_count+1;
-		$stmt->bind_param('si', $tmp1, $tmp2);
-		//$stmt->bindParam(':value', $value);
-
+		//$stmt->bind_param('si', $tmp1, $tmp2);
+		$stmt->bindValue(1, $tmp1, SQLITE3_TEXT);
+		$stmt->bindValue(2, $tmp2, SQLITE3_TEXT);
+		
 		if ($result = $stmt->execute()){
 
-		  echo "success" . "<br>";
-		  $stmt->free_result();
-
+		  echo nl2br("success\n");
+		  
 		} else {
-		  echo "error" . "<br>";
+		  echo nl2br("error\n");
 		}
 
 	} else {
@@ -67,5 +84,7 @@ if (isset($result->pingcount)) {
 	}
 }
 
-mysqli_close($link);
+//mysqli_close($link);
+$link->close();
+
 ?>

@@ -8,7 +8,7 @@
 
 
 # Initialization.
-this_version=2.1
+this_version=2.2
 do_gh_update=false
 gh_version=-1
 curr_directory_name="${PWD##*/}"
@@ -102,13 +102,14 @@ CHANNELIMAGE="https://www.grc.com/image/snonwhite.gif"
 Dev_Coder_email="code@sethleedy.name"
 
 # Send a "Ping" back to my server. This allows me to know that my script is being used out in the wild.
-# The request will show up in my blog and I can parse it later for stats.
+# The server simply counts how many times this version has ran.
+# The count will show up in my blog on a page.
 # Sends out this script version.
 # Sends out the date/time ran.
 function send_ping() {
 
 	datetime=`date '+%Y-%m-%d-%R'`
-	wget $skip_wget_digital_check -qb -O /dev/null -U "$wget_agent_name" "http://techblog.sethleedy.name/do_count.php?datetime=$datetime&agent_code=GRCDownloader_v$this_version" >/dev/null 2>&1
+	wget $skip_wget_digital_check -qb -O /dev/null -U "$wget_agent_name" "http://techblog.sethleedy.name/custom_scripts/grc_count/do_count.php?datetime=$datetime&agent_code=GRCDownloader_v$this_version" >/dev/null 2>&1
 
 }
 
